@@ -4,6 +4,8 @@ final class StatusItemController {
     let statusItem: NSStatusItem
     let animator = SpriteAnimator()
     var onReset: (() -> Void)?
+    var onForceEvolve: (() -> Void)?
+    var onOpenDashboard: (() -> Void)?
     private let menu = NSMenu()
 
     private let stageItem  = NSMenuItem(title: "🥚 Flamimon (알)", action: nil, keyEquivalent: "")
@@ -37,12 +39,42 @@ final class StatusItemController {
         menu.addItem(.separator())
         menu.addItem(projectsHeader)
         menu.addItem(.separator())
-        let resetItem = NSMenuItem(title: "새 알 받기 (처음부터)", action: #selector(reset), keyEquivalent: "")
+        let loginItem = NSMenuItem(title: "로그인 시 자동 실행", action: #selector(toggleLogin), keyEquivalent: "")
+        loginItem.target = self
+        loginItem.state = LaunchAtLogin.isEnabled ? .on : .off
+        menu.addItem(loginItem)
+        menu.addItem(.separator())
+        let dashItem = NSMenuItem(title: "대시보드 열기…", action: #selector(openDashboard), keyEquivalent: "d")
+        dashItem.target = self
+        menu.addItem(dashItem)
+        menu.addItem(.separator())
+        let debugHeader = NSMenuItem(title: "디버그", action: nil, keyEquivalent: "")
+        debugHeader.isEnabled = false
+        menu.addItem(debugHeader)
+        let forceItem = NSMenuItem(title: "   강제 진화 (다음 단계)", action: #selector(forceEvolve), keyEquivalent: "")
+        forceItem.target = self
+        menu.addItem(forceItem)
+        let resetItem = NSMenuItem(title: "   새 알 받기 (처음부터)", action: #selector(reset), keyEquivalent: "")
         resetItem.target = self
         menu.addItem(resetItem)
+        menu.addItem(.separator())
         let quitItem = NSMenuItem(title: "종료", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
+    }
+
+    @objc private func forceEvolve() {
+        onForceEvolve?()
+    }
+
+    @objc private func toggleLogin(_ sender: NSMenuItem) {
+        let newState: NSControl.StateValue = (sender.state == .on) ? .off : .on
+        LaunchAtLogin.setEnabled(newState == .on)
+        sender.state = newState
+    }
+
+    @objc private func openDashboard() {
+        onOpenDashboard?()
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

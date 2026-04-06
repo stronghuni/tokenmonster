@@ -1,11 +1,12 @@
 import Foundation
 
 struct UsageSnapshot {
-    let totalTokens: Int64
+    let totalTokens: Int64        // since baseline
     let todayTokens: Int64
     let tokensPerMinute: Double
     let projects: [(name: String, tokens: Int64)]
     let stage: Stage
+    let totalCostUSD: Double      // lifetime (absolute) cost estimate
 }
 
 final class TokenTracker {
@@ -16,6 +17,7 @@ final class TokenTracker {
     private let claudeRoot: URL
     private var fileOffsets: [String: UInt64] = [:]
     private var projectTotals: [String: Int64] = [:]
+    private var totalCostUSD: Double = 0
     private var todayTokens: Int64 = 0
     private var todayDate: String = TokenTracker.todayKey()
     private var recentBuckets: [(time: Date, tokens: Int64)] = []
@@ -57,6 +59,17 @@ final class TokenTracker {
     }
 
     /// Re-hatches: current absolute total becomes the new zero point.
+    /// Debug: artificially lower the baseline to trigger the next stage.
+    func forceEvolveNextStage() {
+        let absolute = projectTotals.values.reduce(0, +)
+        guard let next = Stage(rawValue: lastKnownStage.rawValue + 1) else { return }
+        let need = next.threshold
+        // set baseline so that (absolute - baseline) == need
+        baseline = max(0, absolute - need)
+        saveState()
+        publish(addedNow: 0)
+    }
+
     func resetBaseline() {
         let absolute = projectTotals.values.reduce(0, +)
         baseline = absolute
@@ -134,6 +147,7 @@ final class TokenTracker {
                   let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
                   let message = obj["message"] as? [String: Any],
                   let usage = message["usage"] as? [String: Any] else { continue }
+            let model = (message["model"] as? String) ?? ""
             let inT  = (usage["input_tokens"]  as? Int) ?? 0
             let outT = (usage["output_tokens"] as? Int) ?? 0
             let cC   = (usage["cache_creation_input_tokens"] as? Int) ?? 0
@@ -141,6 +155,9 @@ final class TokenTracker {
             let total = Int64(inT + outT + cC + cR)
             added += total
             projectTotals[projectName, default: 0] += total
+            totalCostUSD += CostCalculator.cost(
+                model: model, input: inT, output: outT, cacheCreate: cC, cacheRead: cR
+            )
         }
         return added
     }
@@ -163,7 +180,8 @@ final class TokenTracker {
             todayTokens: todayTokens,
             tokensPerMinute: tpm,
             projects: sorted,
-            stage: newStage
+            stage: newStage,
+            totalCostUSD: totalCostUSD
         ))
         if newStage.rawValue > lastKnownStage.rawValue {
             let from = lastKnownStage
