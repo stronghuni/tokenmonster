@@ -69,7 +69,7 @@ final class TokenTracker {
         get { _baseline ?? 0 }
         set { _baseline = newValue; saveState() }
     }
-    private static let stateVersion = 2  // bumped when counting rules change
+    private static let stateVersion = 3  // bumped when counting rules change
 
     private func loadState() {
         guard let data = try? Data(contentsOf: stateURL),
@@ -196,10 +196,10 @@ final class TokenTracker {
             let outT = (usage["output_tokens"] as? Int) ?? 0
             let cC   = (usage["cache_creation_input_tokens"] as? Int) ?? 0
             let cR   = (usage["cache_read_input_tokens"]     as? Int) ?? 0
-            // Exclude cache_read — it's the repeated context replay and
-            // makes up 80-90% of the raw count without representing new work.
-            // We still record cost using cR so the $ figure stays accurate.
-            let total = Int64(inT + outT + cC)
+            // Monster only eats pure input + output — the tokens the user
+            // and Claude actually exchange. cache_create and cache_read are
+            // still used for cost calculation but don't count as "growth".
+            let total = Int64(inT + outT)
             added += total
             projectTotals[projectName, default: 0] += total
             totalCostUSD += CostCalculator.cost(
@@ -285,12 +285,12 @@ final class TokenTracker {
         raw.split(separator: "-").last.map(String.init) ?? raw
     }
 
-    /// Weekly-tokens → ball tier thresholds (cache_read excluded).
+    /// Weekly input+output tokens → ball tier thresholds.
     private static func tier(for weekly: Int64) -> BallTier {
         switch weekly {
-        case ..<3_000_000:            return .monster    // < 3M/week
-        case 3_000_000..<15_000_000:  return .superBall  // 3M–15M/week
-        default:                      return .hyper      // ≥ 15M/week
+        case ..<1_000_000:           return .monster    // < 1M/week
+        case 1_000_000..<5_000_000:  return .superBall  // 1M–5M/week
+        default:                     return .hyper      // ≥ 5M/week
         }
     }
 }
