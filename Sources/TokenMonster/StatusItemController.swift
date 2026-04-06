@@ -23,18 +23,6 @@ final class StatusItemController: NSObject {
         popover.animates = true
 
         dashboardView.onMenuRequested = { [weak self] in self?.showActionsMenu() }
-        dashboardView.onForceEvolve = { [weak self] in
-            self?.popover.performClose(nil)
-            self?.onForceEvolve?()
-        }
-        dashboardView.onReset = { [weak self] in
-            self?.popover.performClose(nil)
-            self?.reset()
-        }
-        dashboardView.onToggleLogin = { [weak self] in
-            LaunchAtLogin.setEnabled(!LaunchAtLogin.isEnabled)
-        }
-        dashboardView.onQuit = { NSApp.terminate(nil) }
 
         if let btn = statusItem.button {
             btn.target = self
