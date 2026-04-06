@@ -17,7 +17,7 @@ final class StatusItemController {
     private let projectsHeader = NSMenuItem(title: "프로젝트별 (상위 5)", action: nil, keyEquivalent: "")
 
     init() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: SpriteAnimator.menubarPointSize)
         animator.statusButton = statusItem.button
         buildMenu()
         statusItem.menu = menu

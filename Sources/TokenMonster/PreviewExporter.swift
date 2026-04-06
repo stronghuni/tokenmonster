@@ -3,57 +3,61 @@ import Cocoa
 enum PreviewExporter {
     static func run() {
         _ = NSApplication.shared
-        let scale = 16
         let dir = URL(fileURLWithPath: "samples/previews", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        let sprites: [(String, [[Int]])] = [
-            ("01_egg",         PixelSprites.eggA),
-            ("02_baby_A",      PixelSprites.babyA),
-            ("02_baby_B",      PixelSprites.babyB),
-            ("03_child_A",     PixelSprites.childA),
-            ("03_child_B",     PixelSprites.childB),
-            ("04_teen_A",      PixelSprites.teenA),
-            ("04_teen_B",      PixelSprites.teenB),
-            ("05_adult_A",     PixelSprites.adultA),
-            ("05_adult_B",     PixelSprites.adultB),
-            ("06_ultimate_A",  PixelSprites.ultimateA),
-            ("06_ultimate_B",  PixelSprites.ultimateB),
+        let stages: [(String, Stage)] = [
+            ("01_egg",      .egg),
+            ("02_baby",     .baby),
+            ("03_child",    .child),
+            ("04_teen",     .teen),
+            ("05_adult",    .adult),
+            ("06_ultimate", .ultimate),
         ]
-        for (name, grid) in sprites {
-            let img = renderPreview(grid: grid, scale: scale)
-            savePNG(img, to: dir.appendingPathComponent("\(name).png"))
+        let scale = 8   // 32px grid → 256px preview
+        var allImages: [(String, NSImage)] = []
+        for (name, stage) in stages {
+            let sprite = ColorSprites.sprite(for: stage)
+            for f in 0..<sprite.frames.count {
+                let img = renderLarge(sprite: sprite, frameIndex: f, scale: scale)
+                let filename = "\(name)_\(f == 0 ? "A" : "B").png"
+                savePNG(img, to: dir.appendingPathComponent(filename))
+                allImages.append(("\(stage.displayName) \(f == 0 ? "A" : "B")", img))
+            }
         }
-        let sheet = renderSheet(sprites: sprites, scale: scale)
+        let sheet = renderSheet(entries: allImages)
         savePNG(sheet, to: dir.appendingPathComponent("00_sheet.png"))
-        print("Exported \(sprites.count) previews + sheet to \(dir.path)")
+        print("Exported \(allImages.count) sprites + sheet to \(dir.path)")
     }
 
-    private static func renderPreview(grid: [[Int]], scale: Int) -> NSImage {
-        let side = 22 * scale
-        let img = NSImage(size: NSSize(width: side, height: side))
+    private static func renderLarge(sprite: ColorSprite, frameIndex: Int, scale: Int) -> NSImage {
+        let grid = sprite.grid(for: frameIndex)
+        let gridSize = sprite.gridSize
+        let pixelSize = gridSize * scale
+        let img = NSImage(size: NSSize(width: pixelSize, height: pixelSize))
         img.lockFocus()
-        NSColor(white: 0.12, alpha: 1).setFill()
-        NSRect(x: 0, y: 0, width: side, height: side).fill()
-        NSColor.white.setFill()
+        NSColor(white: 0.1, alpha: 1).setFill()
+        NSRect(x: 0, y: 0, width: pixelSize, height: pixelSize).fill()
         for (row, line) in grid.enumerated() {
-            let y = 22 - 1 - row
-            for (col, v) in line.enumerated() where v == 1 {
-                NSRect(x: col * scale, y: y * scale, width: scale, height: scale).fill()
+            let y = pixelSize - (row + 1) * scale
+            for (col, ch) in line.enumerated() {
+                guard let color = sprite.palette[ch] else { continue }
+                color.setFill()
+                NSRect(x: col * scale, y: y, width: scale, height: scale).fill()
             }
         }
         img.unlockFocus()
         return img
     }
 
-    private static func renderSheet(sprites: [(String, [[Int]])], scale: Int) -> NSImage {
-        let cell = 22 * scale
-        let pad = 24
-        let labelH = 30
-        let cols = 4
-        let rows = (sprites.count + cols - 1) / cols
-        let totalW = cols * cell + (cols + 1) * pad
-        let totalH = rows * (cell + labelH) + (rows + 1) * pad
+    private static func renderSheet(entries: [(String, NSImage)]) -> NSImage {
+        let cols = 3
+        let cellW = 270
+        let cellH = 290
+        let rows = (entries.count + cols - 1) / cols
+        let pad = 20
+        let totalW = cols * cellW + (cols + 1) * pad
+        let totalH = rows * cellH + (rows + 1) * pad
         let img = NSImage(size: NSSize(width: totalW, height: totalH))
         img.lockFocus()
         NSColor(white: 0.08, alpha: 1).setFill()
@@ -62,29 +66,26 @@ enum PreviewExporter {
         let font = NSFont.monospacedSystemFont(ofSize: 18, weight: .medium)
         let textAttrs: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor(white: 0.7, alpha: 1),
+            .foregroundColor: NSColor(white: 0.85, alpha: 1),
         ]
 
-        for (i, entry) in sprites.enumerated() {
+        for (i, entry) in entries.enumerated() {
             let col = i % cols
             let row = i / cols
-            let x = pad + col * (cell + pad)
-            let yTop = pad + row * (cell + labelH + pad)
-            let cellYBottom = totalH - yTop - cell
-
-            NSColor(white: 0.15, alpha: 1).setFill()
-            NSRect(x: x - 2, y: cellYBottom - 2, width: cell + 4, height: cell + 4).fill()
-
-            NSColor.white.setFill()
-            for (r, line) in entry.1.enumerated() {
-                let py = 22 - 1 - r
-                for (c, v) in line.enumerated() where v == 1 {
-                    NSRect(x: x + c * scale, y: cellYBottom + py * scale, width: scale, height: scale).fill()
-                }
-            }
-            let label = entry.0
-            let str = NSAttributedString(string: label, attributes: textAttrs)
-            str.draw(at: NSPoint(x: x, y: cellYBottom - 26))
+            let x = pad + col * (cellW + pad)
+            let yTop = pad + row * (cellH + pad)
+            let cellYBottom = totalH - yTop - cellH
+            NSColor(white: 0.14, alpha: 1).setFill()
+            NSRect(x: x, y: cellYBottom, width: cellW, height: cellH).fill()
+            // draw the sprite image centered in the cell, preserving aspect
+            let sprite = entry.1
+            let spriteSize: CGFloat = 240
+            let sx = CGFloat(x) + (CGFloat(cellW) - spriteSize) / 2
+            let sy = CGFloat(cellYBottom) + 34
+            sprite.draw(in: NSRect(x: sx, y: sy, width: spriteSize, height: spriteSize))
+            // label
+            let label = NSAttributedString(string: entry.0, attributes: textAttrs)
+            label.draw(at: NSPoint(x: CGFloat(x) + 12, y: CGFloat(cellYBottom) + 8))
         }
         img.unlockFocus()
         return img

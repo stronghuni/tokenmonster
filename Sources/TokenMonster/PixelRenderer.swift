@@ -1,35 +1,55 @@
 import Cocoa
 
 enum PixelRenderer {
-    /// Renders a 22x22 grid to a template NSImage.
-    /// rotationDegrees rotates around the bottom-center (for egg wobble).
-    static func render(grid: [[Int]], rotationDegrees: CGFloat = 0, yBob: Int = 0) -> NSImage {
-        let size = NSSize(width: 22, height: 22)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        defer { image.unlockFocus() }
+    /// Renders a ColorSprite frame as a crisp pixel-art NSImage.
+    /// - pointSize: NSImage size in points (menubar uses ~22 or 32).
+    /// - bitmapScale: multiplier for backing bitmap (2 = Retina crisp).
+    /// Each character cell becomes `bitmapScale` physical pixels.
+    static func renderColor(sprite: ColorSprite,
+                            frameIndex: Int,
+                            pointSize: CGFloat,
+                            bitmapScale: Int = 2) -> NSImage {
+        let grid = sprite.grid(for: frameIndex)
+        let gridSize = sprite.gridSize
+        let pixelSize = gridSize * bitmapScale
 
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return image }
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixelSize,
+            pixelsHigh: pixelSize,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 32
+        ) else {
+            return NSImage(size: NSSize(width: pointSize, height: pointSize))
+        }
+        rep.size = NSSize(width: pointSize, height: pointSize)
 
-        ctx.saveGState()
-        // rotate around bottom-center of the 22x22 canvas
-        // NSImage origin is bottom-left, bottom-center = (11, 3)
-        ctx.translateBy(x: 11, y: 3)
-        ctx.rotate(by: rotationDegrees * .pi / 180)
-        ctx.translateBy(x: -11, y: -3)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .none
+        NSColor.clear.setFill()
+        NSRect(x: 0, y: 0, width: pixelSize, height: pixelSize).fill()
 
-        ctx.setFillColor(NSColor.black.cgColor)
         for (row, line) in grid.enumerated() {
-            // SVG-style top-down row → flip to NSImage bottom-up y
-            // yBob > 0 lifts the sprite up (toward top of canvas in screen terms)
-            let y = 22 - 1 - row - yBob
-            for (col, v) in line.enumerated() where v == 1 {
-                ctx.fill(CGRect(x: col, y: y, width: 1, height: 1))
+            // flip Y: grid row 0 = top, bitmap y=0 = bottom
+            let baseY = pixelSize - (row + 1) * bitmapScale
+            for (col, ch) in line.enumerated() {
+                guard let color = sprite.palette[ch] else { continue }
+                color.setFill()
+                let baseX = col * bitmapScale
+                NSRect(x: baseX, y: baseY, width: bitmapScale, height: bitmapScale).fill()
             }
         }
-        ctx.restoreGState()
 
-        image.isTemplate = true
-        return image
+        NSGraphicsContext.restoreGraphicsState()
+
+        let img = NSImage(size: NSSize(width: pointSize, height: pointSize))
+        img.addRepresentation(rep)
+        return img
     }
 }

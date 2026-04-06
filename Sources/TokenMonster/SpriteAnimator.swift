@@ -2,46 +2,26 @@ import Cocoa
 
 final class SpriteAnimator {
     weak var statusButton: NSStatusBarButton?
+    static let menubarPointSize: CGFloat = 32
 
     private var frames: [NSImage] = []
     private var frameIndex = 0
     private var timer: Timer?
-    private var baseInterval: TimeInterval = 0.22
+    private var baseInterval: TimeInterval = 0.3
     private var speedMultiplier: Double = 1.0
     private var currentStage: Stage?
-
-    /// Builds a 4-frame breathing cycle from two source grids:
-    /// A(bob=0) → A(bob=1, lifted) → B(bob=0) → B(bob=-1, squashed)
-    /// This gives an actual "jumping/breathing" feel in tight canvas.
-    private static func breathe(_ a: [[Int]], _ b: [[Int]]) -> [NSImage] {
-        [
-            PixelRenderer.render(grid: a, yBob: 0),
-            PixelRenderer.render(grid: a, yBob: 1),
-            PixelRenderer.render(grid: b, yBob: 0),
-            PixelRenderer.render(grid: b, yBob: -1),
-        ]
-    }
 
     func setStage(_ stage: Stage) {
         guard stage != currentStage else { return }
         currentStage = stage
-
-        switch stage {
-        case .egg:
-            // Egg just wobbles left-right (6 frames for smoother motion)
-            frames = [
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees: -8),
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees: -4),
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  0),
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  4),
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  8),
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  0),
-            ]
-        case .baby:    frames = Self.breathe(PixelSprites.babyA,     PixelSprites.babyB)
-        case .child:   frames = Self.breathe(PixelSprites.childA,    PixelSprites.childB)
-        case .teen:    frames = Self.breathe(PixelSprites.teenA,     PixelSprites.teenB)
-        case .adult:   frames = Self.breathe(PixelSprites.adultA,    PixelSprites.adultB)
-        case .ultimate:frames = Self.breathe(PixelSprites.ultimateA, PixelSprites.ultimateB)
+        let sprite = ColorSprites.sprite(for: stage)
+        frames = (0..<sprite.frames.count).map { idx in
+            PixelRenderer.renderColor(
+                sprite: sprite,
+                frameIndex: idx,
+                pointSize: Self.menubarPointSize,
+                bitmapScale: 2
+            )
         }
         frameIndex = 0
         restart()
@@ -62,16 +42,15 @@ final class SpriteAnimator {
         }
     }
 
-    /// Shakes the status icon left-right for 3 seconds (no blink).
-    /// Used for evolution feedback together with haptics.
+    /// Shakes the icon left-right for 3 seconds on evolution.
     func playEvolutionShake() {
         guard let btn = statusButton, !frames.isEmpty else { return }
         timer?.invalidate()
         let base = frames[frameIndex % frames.count]
         let shakeFrames: [NSImage] = [
-            Self.shifted(base, dx: -1),
+            Self.shifted(base, dx: -2),
             base,
-            Self.shifted(base, dx: 1),
+            Self.shifted(base, dx: 2),
             base,
         ]
         var count = 0
@@ -88,13 +67,13 @@ final class SpriteAnimator {
     }
 
     private static func shifted(_ img: NSImage, dx: Int) -> NSImage {
-        let out = NSImage(size: NSSize(width: 22, height: 22))
+        let size = img.size
+        let out = NSImage(size: size)
         out.lockFocus()
         img.draw(at: NSPoint(x: CGFloat(dx), y: 0),
-                 from: NSRect(origin: .zero, size: img.size),
+                 from: NSRect(origin: .zero, size: size),
                  operation: .copy, fraction: 1)
         out.unlockFocus()
-        out.isTemplate = true
         return out
     }
 
