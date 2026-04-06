@@ -278,9 +278,9 @@ final class TokenTracker {
     /// Weekly-tokens → ball tier thresholds.
     private static func tier(for weekly: Int64) -> BallTier {
         switch weekly {
-        case ..<1_000_000:         return .monster     // < 1M/week
-        case 1_000_000..<10_000_000: return .superBall  // 1M–10M/week
-        default:                    return .hyper       // ≥ 10M/week
+        case ..<5_000_000:           return .monster    // < 5M/week
+        case 5_000_000..<20_000_000: return .superBall  // 5M–20M/week
+        default:                     return .hyper      // ≥ 20M/week
         }
     }
 }
