@@ -217,12 +217,12 @@ final class DashboardView: NSView {
         weekStat.setValue(Self.short(weeklyTotal))
         totalStat.setValue(Self.short(snapshot.totalTokens))
 
-        // sprite
+        // sprite — use HIGH-RES (48x48) version for dashboard
         if snapshot.stage != currentStage || spriteView.image == nil {
             currentStage = snapshot.stage
-            let s = ColorSprites.sprite(for: snapshot.stage)
+            let s = LargeSprites.sprite(for: snapshot.stage)
             spriteView.image = PixelRenderer.renderColor(
-                sprite: s, frameIndex: 0, pointSize: 120, bitmapScale: 4
+                sprite: s, frameIndex: 0, pointSize: 120, bitmapScale: 2
             )
         }
 

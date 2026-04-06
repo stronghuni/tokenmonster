@@ -1,326 +1,381 @@
 import Cocoa
 
-/// Concrete sprite definitions for all 6 stages of the Flamimon line.
-/// Grid size: 22x22 (matches menubar native point size with @2x retina).
-/// Each grid cell = 2 bitmap pixels at @2x = 1 point. Pixel-perfect.
+/// Menubar sprites — clean 22x22 template (single-color silhouette, RunCat-style).
+/// Each stage has 4 frames for a continuous tail-wag cycle.
+/// Rendered with `isTemplate = true` so macOS inverts for dark/light menubar.
 enum ColorSprites {
 
     static let palette: [Character: NSColor] = [
-        "O": ColorSprite.hex("#2a0a00"),   // outline
-        "#": ColorSprite.hex("#ff7a28"),   // body base
-        "x": ColorSprite.hex("#a13400"),   // body shadow
-        "o": ColorSprite.hex("#ffb852"),   // body highlight
-        "a": ColorSprite.hex("#ffdc3a"),   // flame
-        "y": ColorSprite.hex("#fff4a0"),   // flame highlight
-        "e": ColorSprite.hex("#ffffff"),   // eye white
-        "p": ColorSprite.hex("#1a0a00"),   // pupil
-        "m": ColorSprite.hex("#5a1000"),   // mouth
-        "w": ColorSprite.hex("#c33800"),   // wing
+        "#": NSColor.black,  // template — system inverts based on appearance
     ]
 
-    private static let bodyChars: Set<Character> = ["#", "x", "o", "a", "y", "w", "e", "p", "m"]
+    private static let bodyChars: Set<Character> = ["#"]
     private static let SIZE = 22
 
-    // MARK: - Stage 1: Egg
+    // MARK: - Stage 1: Egg (wobble only, no tail)
     static let egg: ColorSprite = {
-        func build(cracked: Bool) -> SpriteBuilder {
+        func build(_ highlight: Bool) -> SpriteBuilder {
             var g = SpriteBuilder(size: SIZE)
-            // elongated oval
-            g.disc("#", 11, 12, 7)
-            g.rect("#", 7, 4, 8, 2)
-            // clean the top — make it egg-shaped
-            for x in 0..<SIZE { g.set(".", x, 4) }
+            // oval body
+            g.rect("#", 9, 3, 4)
             g.rect("#", 8, 4, 6)
             g.rect("#", 7, 5, 8)
-            // highlights (upper-left)
-            g.set("o", 8,  7); g.set("o", 9,  6); g.set("o", 8,  8)
-            // shadows (lower-right)
-            g.set("x", 15, 14); g.set("x", 15, 15); g.set("x", 14, 16)
-            // fire spots
-            g.set("x", 9, 10); g.set("x", 10, 10)
-            g.set("x", 13, 13)
-            g.set("x", 9, 16)
-            if cracked {
-                g.set("p", 10, 6)
-                g.set("p", 11, 7)
-                g.set("p", 10, 8)
+            g.rect("#", 6, 6, 10)
+            g.rect("#", 6, 7, 10)
+            g.rect("#", 5, 8, 12)
+            g.rect("#", 5, 9, 12)
+            g.rect("#", 5, 10, 12)
+            g.rect("#", 5, 11, 12)
+            g.rect("#", 5, 12, 12)
+            g.rect("#", 5, 13, 12)
+            g.rect("#", 5, 14, 12)
+            g.rect("#", 5, 15, 12)
+            g.rect("#", 6, 16, 10)
+            g.rect("#", 6, 17, 10)
+            g.rect("#", 7, 18, 8)
+            g.rect("#", 9, 19, 4)
+            // fire spots (cut holes)
+            g.set(".", 8, 9); g.set(".", 9, 10)
+            g.set(".", 13, 12); g.set(".", 14, 11)
+            g.set(".", 9, 15); g.set(".", 10, 16)
+            if highlight {
+                g.set(".", 15, 5); g.set(".", 15, 6)
             }
-            g.outline("O", bodyChars: bodyChars)
             return g
         }
         return ColorSprite(
             gridSize: SIZE, palette: palette,
-            frames: [build(cracked: false).build(), build(cracked: true).build()]
+            frames: [build(false).build(), build(true).build(),
+                     build(false).build(), build(true).build()]
         )
     }()
 
     // MARK: - Stage 2: Baby "Flamkin"
+    // Round blob + flame tuft + dot eyes + tail nub that wags up/down
     static let baby: ColorSprite = {
-        func build(jumping: Bool) -> SpriteBuilder {
+        func build(tailYOffset: Int, mouth: Int) -> SpriteBuilder {
             var g = SpriteBuilder(size: SIZE)
-            let dy = jumping ? -1 : 0
             // flame tuft
-            g.set("a", 11, 1 + dy)
-            g.set("y", 11, 2 + dy); g.set("a", 10, 2 + dy); g.set("a", 12, 2 + dy)
-            g.set("a", 11, 3 + dy)
-            // round blob body
-            g.disc("#", 11, 12 + dy, 7)
-            // shadow (lower-right)
-            g.set("x", 16, 10 + dy); g.set("x", 17, 11 + dy); g.set("x", 17, 12 + dy)
-            g.set("x", 17, 13 + dy); g.set("x", 16, 15 + dy); g.set("x", 15, 16 + dy)
-            // highlight (upper-left)
-            g.set("o", 6, 10 + dy); g.set("o", 6, 11 + dy); g.set("o", 7, 9 + dy)
-            g.set("o", 8, 8 + dy)
-            // eyes
-            if jumping {
-                // closed happy eyes (^^) as 2px dashes
-                g.rect("p", 8, 11 + dy, 2)
-                g.rect("p", 13, 11 + dy, 2)
-            } else {
-                g.rect("e", 8, 10 + dy, 2, 2)
-                g.rect("e", 13, 10 + dy, 2, 2)
-                g.set("p", 9, 11 + dy); g.set("p", 14, 11 + dy)
-            }
+            g.set("#", 10, 1); g.set("#", 11, 1)
+            g.set("#", 9, 2);  g.set("#", 10, 2); g.set("#", 11, 2); g.set("#", 12, 2)
+            g.set("#", 10, 3); g.set("#", 11, 3)
+            // round body
+            g.rect("#", 7, 5, 9)
+            g.rect("#", 6, 6, 11)
+            g.rect("#", 5, 7, 13)
+            g.rect("#", 4, 8, 15)
+            g.rect("#", 4, 9, 15)
+            g.rect("#", 4, 10, 15)
+            g.rect("#", 4, 11, 15)
+            g.rect("#", 4, 12, 15)
+            g.rect("#", 4, 13, 15)
+            g.rect("#", 5, 14, 13)
+            g.rect("#", 5, 15, 13)
+            g.rect("#", 6, 16, 11)
+            g.rect("#", 7, 17, 9)
+            // eyes (punch holes)
+            g.set(".", 8, 9); g.set(".", 8, 10)
+            g.set(".", 14, 9); g.set(".", 14, 10)
             // mouth
-            if jumping {
-                g.rect("m", 10, 14 + dy, 3)
-                g.set("#", 10, 14 + dy); g.set("#", 12, 14 + dy)
-            } else {
-                g.rect("m", 10, 14 + dy, 3)
+            switch mouth {
+            case 0: g.rect(".", 10, 12, 3, 1)
+            case 1: g.rect(".", 10, 12, 3, 2)
+            default: g.rect(".", 10, 12, 3, 1)
             }
             // tiny feet
-            if !jumping {
-                g.rect("x", 8, 19, 2)
-                g.rect("x", 13, 19, 2)
-            } else {
-                g.set("x", 9, 19); g.set("x", 13, 19)
-            }
-            g.outline("O", bodyChars: bodyChars)
+            g.rect("#", 7, 18, 2)
+            g.rect("#", 13, 18, 2)
+            // tail nub on right side — wags up/down
+            let ty = 11 + tailYOffset
+            g.set("#", 18, ty)
+            g.set("#", 19, ty)
+            g.set("#", 19, ty - 1)
+            g.set("#", 20, ty - 1)
             return g
         }
         return ColorSprite(
             gridSize: SIZE, palette: palette,
-            frames: [build(jumping: false).build(), build(jumping: true).build()]
+            frames: [
+                build(tailYOffset: 0,  mouth: 0).build(),
+                build(tailYOffset: -2, mouth: 1).build(),
+                build(tailYOffset: 0,  mouth: 0).build(),
+                build(tailYOffset: 2,  mouth: 0).build(),
+            ]
         )
     }()
 
     // MARK: - Stage 3: Child "Flamon"
+    // Bipedal + two ear-tufts + tail that wags
     static let child: ColorSprite = {
-        func build(armsUp: Bool) -> SpriteBuilder {
+        func build(tailYOffset: Int, armUp: Bool) -> SpriteBuilder {
             var g = SpriteBuilder(size: SIZE)
-            // ear flame tufts
-            g.set("a", 5, 3); g.set("y", 6, 3)
-            g.set("a", 16, 3); g.set("y", 15, 3)
+            // ear tufts
+            g.set("#", 5, 1); g.set("#", 6, 2); g.set("#", 6, 3)
+            g.set("#", 16, 1); g.set("#", 15, 2); g.set("#", 15, 3)
             // head
-            g.disc("#", 11, 7, 4)
-            g.set("x", 14, 5); g.set("x", 15, 6); g.set("x", 15, 7); g.set("x", 14, 9)
-            g.set("o", 8, 5); g.set("o", 7, 6)
+            g.rect("#", 7, 3, 8)
+            g.rect("#", 6, 4, 10)
+            g.rect("#", 5, 5, 12)
+            g.rect("#", 5, 6, 12)
+            g.rect("#", 5, 7, 12)
+            g.rect("#", 6, 8, 10)
             // eyes
-            g.rect("e", 8, 7, 2)
-            g.rect("e", 13, 7, 2)
-            g.set("p", 9, 7); g.set("p", 14, 7)
+            g.set(".", 8, 6); g.set(".", 9, 6)
+            g.set(".", 13, 6); g.set(".", 14, 6)
             // mouth
-            g.rect("m", 10, 9, 3)
+            g.rect(".", 10, 8, 2)
+            // neck
+            g.rect("#", 9, 9, 4)
             // body
-            g.disc("#", 11, 13, 4)
-            g.set("x", 14, 12); g.set("x", 15, 13); g.set("x", 14, 15)
-            g.set("o", 7, 12); g.set("o", 8, 11)
+            g.rect("#", 7, 10, 8)
+            g.rect("#", 6, 11, 10)
+            g.rect("#", 6, 12, 10)
+            g.rect("#", 7, 13, 8)
+            g.rect("#", 7, 14, 8)
             // arms
-            if armsUp {
-                g.rect("#", 5, 8, 2, 3)
-                g.rect("#", 15, 8, 2, 3)
-                g.set("a", 5, 7); g.set("a", 16, 7)
+            if armUp {
+                g.set("#", 5, 10); g.set("#", 5, 11)
+                g.set("#", 16, 10); g.set("#", 16, 11)
             } else {
-                g.rect("#", 6, 12, 2, 3)
-                g.rect("#", 14, 12, 2, 3)
+                g.set("#", 5, 11); g.set("#", 5, 12); g.set("#", 4, 12)
+                g.set("#", 16, 11); g.set("#", 16, 12); g.set("#", 17, 12)
             }
-            // legs
-            g.rect("#", 8, 17, 2, 2)
-            g.rect("#", 12, 17, 2, 2)
-            g.rect("O", 7, 19, 4)
-            g.rect("O", 11, 19, 4)
-            g.outline("O", bodyChars: bodyChars)
+            // legs + feet
+            g.rect("#", 8, 15, 2)
+            g.rect("#", 12, 15, 2)
+            g.rect("#", 7, 16, 3)
+            g.rect("#", 12, 16, 3)
+            g.rect("#", 7, 17, 3)
+            g.rect("#", 12, 17, 3)
+            // tail wagging from back (right side)
+            let ty = 11 + tailYOffset
+            g.set("#", 16, ty)
+            g.set("#", 17, ty - 1)
+            g.set("#", 18, ty - 1)
+            g.set("#", 19, ty - 2)
             return g
         }
         return ColorSprite(
             gridSize: SIZE, palette: palette,
-            frames: [build(armsUp: false).build(), build(armsUp: true).build()]
+            frames: [
+                build(tailYOffset: 0, armUp: false).build(),
+                build(tailYOffset: -2, armUp: true).build(),
+                build(tailYOffset: 0, armUp: false).build(),
+                build(tailYOffset: 2, armUp: true).build(),
+            ]
         )
     }()
 
     // MARK: - Stage 4: Teen "Blazon"
+    // Mohawk + horns + longer tail
     static let teen: ColorSprite = {
-        func build(tailFlick: Bool) -> SpriteBuilder {
+        func build(tailYOffset: Int, mohawkShift: Int) -> SpriteBuilder {
             var g = SpriteBuilder(size: SIZE)
-            // mohawk flame crest
-            g.set("a", 11, 0); g.set("a", 10, 1); g.set("y", 11, 1); g.set("a", 12, 1)
-            g.set("a", 11, 2)
-            // horns angled
-            g.set("O", 7, 2); g.set("O", 6, 3)
-            g.set("O", 15, 2); g.set("O", 16, 3)
+            // mohawk crest
+            let mx = 10 + mohawkShift
+            g.set("#", mx, 0); g.set("#", mx + 1, 0)
+            g.set("#", mx - 1, 1); g.set("#", mx + 2, 1)
+            g.set("#", mx, 1); g.set("#", mx + 1, 1)
+            g.set("#", mx, 2); g.set("#", mx + 1, 2)
+            // horns
+            g.set("#", 5, 2); g.set("#", 6, 3)
+            g.set("#", 16, 2); g.set("#", 15, 3)
             // head
-            g.disc("#", 11, 7, 4)
-            g.set("x", 14, 5); g.set("x", 15, 6); g.set("x", 15, 7); g.set("x", 14, 9)
-            g.set("o", 8, 5); g.set("o", 7, 6)
+            g.rect("#", 7, 3, 8)
+            g.rect("#", 6, 4, 10)
+            g.rect("#", 5, 5, 12)
+            g.rect("#", 5, 6, 12)
+            g.rect("#", 5, 7, 12)
+            g.rect("#", 6, 8, 10)
             // fierce eyes
-            g.set("e", 8, 7); g.set("p", 8, 8)
-            g.set("e", 14, 7); g.set("p", 14, 8)
-            // fanged mouth
-            g.rect("m", 10, 9, 3)
-            g.set("e", 10, 9)
+            g.set(".", 8, 6); g.set(".", 9, 7)
+            g.set(".", 13, 6); g.set(".", 12, 7)
+            // snarl mouth
+            g.rect(".", 10, 8, 2)
             // neck
-            g.rect("#", 9, 11, 5)
-            // body (leaner, taller)
-            g.rect("#", 8, 12, 7, 4)
-            g.disc("#", 11, 14, 4)
-            g.set("x", 14, 13); g.set("x", 14, 14); g.set("x", 14, 15)
-            g.set("o", 8, 13); g.set("o", 9, 12)
-            // arms extended
-            g.rect("#", 6, 12, 2, 2)
-            g.rect("#", 15, 12, 2, 2)
-            // tail
-            if tailFlick {
-                g.set("#", 16, 12); g.set("#", 17, 11); g.set("a", 18, 10)
-            } else {
-                g.set("#", 16, 14); g.set("#", 17, 15); g.set("a", 18, 16)
-            }
-            // battle-stance legs
-            g.rect("#", 7, 17, 2, 2)
-            g.rect("#", 13, 17, 2, 2)
-            g.rect("O", 6, 19, 4)
-            g.rect("O", 12, 19, 4)
-            g.outline("O", bodyChars: bodyChars)
+            g.rect("#", 9, 9, 4)
+            // body
+            g.rect("#", 6, 10, 10)
+            g.rect("#", 5, 11, 12)
+            g.rect("#", 5, 12, 12)
+            g.rect("#", 6, 13, 10)
+            g.rect("#", 7, 14, 8)
+            // arms at sides
+            g.set("#", 4, 11); g.set("#", 4, 12)
+            g.set("#", 17, 11); g.set("#", 17, 12)
+            // legs
+            g.rect("#", 7, 15, 2)
+            g.rect("#", 13, 15, 2)
+            g.rect("#", 6, 16, 3)
+            g.rect("#", 13, 16, 3)
+            g.rect("#", 6, 17, 3)
+            g.rect("#", 13, 17, 3)
+            // tail — longer, flame-tipped, wags
+            let ty = 12 + tailYOffset
+            g.set("#", 16, ty)
+            g.set("#", 17, ty - 1)
+            g.set("#", 18, ty - 1)
+            g.set("#", 19, ty - 2)
+            g.set("#", 20, ty - 2)
+            g.set("#", 20, ty - 3)  // flame tip
             return g
         }
         return ColorSprite(
             gridSize: SIZE, palette: palette,
-            frames: [build(tailFlick: false).build(), build(tailFlick: true).build()]
+            frames: [
+                build(tailYOffset: 0,  mohawkShift: 0).build(),
+                build(tailYOffset: -2, mohawkShift: 1).build(),
+                build(tailYOffset: 0,  mohawkShift: 0).build(),
+                build(tailYOffset: 2,  mohawkShift: -1).build(),
+            ]
         )
     }()
 
     // MARK: - Stage 5: Adult "Infernon"
+    // Curved horns + folded wings + dragon tail
     static let adult: ColorSprite = {
-        func build(wingOpen: Bool) -> SpriteBuilder {
+        func build(tailYOffset: Int, wingFlap: Bool) -> SpriteBuilder {
             var g = SpriteBuilder(size: SIZE)
             // curved horns
-            g.set("O", 6, 1); g.set("O", 5, 2); g.set("O", 6, 3)
-            g.set("O", 15, 1); g.set("O", 16, 2); g.set("O", 15, 3)
+            g.set("#", 5, 1); g.set("#", 4, 2); g.set("#", 5, 3)
+            g.set("#", 16, 1); g.set("#", 17, 2); g.set("#", 16, 3)
             // head
-            g.disc("#", 11, 7, 5)
-            g.set("x", 15, 5); g.set("x", 16, 6); g.set("x", 16, 7); g.set("x", 15, 9)
-            g.set("o", 7, 5); g.set("o", 6, 6)
+            g.rect("#", 7, 3, 8)
+            g.rect("#", 6, 4, 10)
+            g.rect("#", 6, 5, 10)
+            g.rect("#", 5, 6, 12)
+            g.rect("#", 5, 7, 12)
+            g.rect("#", 6, 8, 10)
             // eyes
-            g.rect("e", 8, 6, 2)
-            g.rect("e", 13, 6, 2)
-            g.set("p", 9, 7); g.set("p", 14, 7)
-            // nostrils / mouth
-            g.set("m", 10, 10); g.set("m", 12, 10)
-            // wings
-            if wingOpen {
-                // open wings — triangles reaching outward
-                for (x,y) in [(1,6),(2,6),(1,7),(2,7),(3,7),(1,8),(2,8),(3,8),(4,8),(2,9),(3,9),(4,9),(3,10),(4,10)] {
-                    g.set("w", x, y)
-                }
-                for (x,y) in [(20,6),(19,6),(20,7),(19,7),(18,7),(20,8),(19,8),(18,8),(17,8),(19,9),(18,9),(17,9),(18,10),(17,10)] {
-                    g.set("w", x, y)
-                }
+            g.set(".", 8, 5); g.set(".", 8, 6)
+            g.set(".", 13, 5); g.set(".", 13, 6)
+            // snout
+            g.set(".", 10, 8); g.set(".", 11, 8)
+            // neck
+            g.rect("#", 8, 9, 6)
+            // wings (behind shoulders)
+            if wingFlap {
+                g.set("#", 2, 7); g.set("#", 2, 8); g.set("#", 1, 9); g.set("#", 2, 9); g.set("#", 3, 10)
+                g.set("#", 19, 7); g.set("#", 19, 8); g.set("#", 19, 9); g.set("#", 20, 9); g.set("#", 18, 10)
             } else {
-                // folded wings close to shoulders
-                for (x,y) in [(3,8),(4,8),(4,9),(3,9)] { g.set("w", x, y) }
-                for (x,y) in [(17,8),(18,8),(17,9),(18,9)] { g.set("w", x, y) }
+                g.set("#", 3, 9); g.set("#", 2, 10); g.set("#", 3, 10); g.set("#", 3, 11); g.set("#", 4, 11)
+                g.set("#", 18, 9); g.set("#", 19, 10); g.set("#", 18, 10); g.set("#", 18, 11); g.set("#", 17, 11)
             }
             // body
-            g.disc("#", 11, 14, 5)
-            g.set("x", 15, 12); g.set("x", 16, 13); g.set("x", 15, 14); g.set("x", 15, 15)
-            g.set("o", 7, 12); g.set("o", 6, 13)
-            // chest plate highlight
-            g.set("o", 10, 13); g.set("o", 11, 13)
-            // tail
-            g.set("#", 16, 15); g.set("#", 17, 16); g.set("a", 18, 17)
+            g.rect("#", 5, 10, 12)
+            g.rect("#", 4, 11, 14)
+            g.rect("#", 5, 12, 12)
+            g.rect("#", 5, 13, 12)
+            g.rect("#", 6, 14, 10)
             // legs
-            g.rect("#", 7, 17, 2, 2)
-            g.rect("#", 13, 17, 2, 2)
-            g.rect("O", 6, 19, 4)
-            g.rect("O", 12, 19, 4)
-            g.outline("O", bodyChars: bodyChars)
+            g.rect("#", 7, 15, 2)
+            g.rect("#", 13, 15, 2)
+            g.rect("#", 6, 16, 3)
+            g.rect("#", 13, 16, 3)
+            g.rect("#", 6, 17, 3)
+            g.rect("#", 13, 17, 3)
+            g.rect("#", 5, 18, 4)
+            g.rect("#", 13, 18, 4)
+            // dragon tail — long, wags
+            let ty = 12 + tailYOffset
+            g.set("#", 17, ty)
+            g.set("#", 18, ty - 1)
+            g.set("#", 19, ty - 1)
+            g.set("#", 20, ty - 2)
+            g.set("#", 20, ty - 3)
             return g
         }
         return ColorSprite(
             gridSize: SIZE, palette: palette,
-            frames: [build(wingOpen: false).build(), build(wingOpen: true).build()]
+            frames: [
+                build(tailYOffset: 0,  wingFlap: false).build(),
+                build(tailYOffset: -2, wingFlap: true).build(),
+                build(tailYOffset: 0,  wingFlap: false).build(),
+                build(tailYOffset: 2,  wingFlap: true).build(),
+            ]
         )
     }()
 
     // MARK: - Stage 6: Ultimate "Phoenignis"
+    // Flame crown + spread wings + majestic tail
     static let ultimate: ColorSprite = {
-        func build(wingsDown: Bool) -> SpriteBuilder {
+        func build(tailYOffset: Int, wingsUp: Bool, crownFlicker: Bool) -> SpriteBuilder {
             var g = SpriteBuilder(size: SIZE)
-            // flame crown (3 peaks)
-            g.set("a", 6, 0); g.set("a", 11, 0); g.set("a", 16, 0)
-            g.set("y", 6, 1); g.set("y", 11, 1); g.set("y", 16, 1)
-            g.set("a", 5, 2); g.set("a", 7, 2)
-            g.set("a", 10, 2); g.set("a", 12, 2)
-            g.set("a", 15, 2); g.set("a", 17, 2)
-            // head
-            g.disc("#", 11, 7, 4)
-            g.set("x", 14, 5); g.set("x", 15, 6); g.set("x", 14, 9)
-            g.set("o", 8, 5); g.set("o", 7, 6)
-            // piercing eyes
-            g.set("e", 8, 7); g.set("p", 8, 7)
-            g.set("e", 14, 7); g.set("p", 14, 7)
-            // sharp mouth
-            g.set("m", 10, 9); g.set("m", 12, 9)
-            // wings span full width
-            if wingsDown {
-                // wings angled down (spread wide from shoulders)
-                for (x,y) in [
-                    (0,9),(1,9),(2,9),
-                    (0,10),(1,10),(2,10),(3,10),
-                    (0,11),(1,11),(2,11),(3,11),(4,11),
-                    (1,12),(2,12),(3,12),(4,12),
-                    (2,13),(3,13),(4,13),
-                ] { g.set("w", x, y) }
-                for (x,y) in [
-                    (21,9),(20,9),(19,9),
-                    (21,10),(20,10),(19,10),(18,10),
-                    (21,11),(20,11),(19,11),(18,11),(17,11),
-                    (20,12),(19,12),(18,12),(17,12),
-                    (19,13),(18,13),(17,13),
-                ] { g.set("w", x, y) }
+            // flame crown — three peaks
+            if crownFlicker {
+                g.set("#", 5, 1); g.set("#", 10, 0); g.set("#", 11, 0); g.set("#", 16, 1)
+                g.set("#", 5, 2); g.set("#", 10, 1); g.set("#", 11, 1); g.set("#", 16, 2)
             } else {
-                // wings angled up (beat)
-                for (x,y) in [
-                    (0,4),(1,4),(2,4),
-                    (0,5),(1,5),(2,5),(3,5),
-                    (0,6),(1,6),(2,6),(3,6),(4,6),
-                    (1,7),(2,7),(3,7),(4,7),
-                    (2,8),(3,8),(4,8),
-                ] { g.set("w", x, y) }
-                for (x,y) in [
-                    (21,4),(20,4),(19,4),
-                    (21,5),(20,5),(19,5),(18,5),
-                    (21,6),(20,6),(19,6),(18,6),(17,6),
-                    (20,7),(19,7),(18,7),(17,7),
-                    (19,8),(18,8),(17,8),
-                ] { g.set("w", x, y) }
+                g.set("#", 5, 0); g.set("#", 10, 1); g.set("#", 11, 1); g.set("#", 16, 0)
+                g.set("#", 5, 1); g.set("#", 10, 2); g.set("#", 11, 2); g.set("#", 16, 1)
             }
-            // chest + body
-            g.rect("#", 9, 11, 5)
-            g.disc("#", 11, 14, 4)
-            g.set("x", 14, 13); g.set("x", 14, 14); g.set("x", 14, 15)
-            // glowing chest orb
-            g.set("a", 10, 13); g.set("y", 11, 13); g.set("a", 11, 14)
+            g.set("#", 5, 3); g.set("#", 10, 3); g.set("#", 11, 3); g.set("#", 16, 3)
+            // head
+            g.rect("#", 7, 4, 8)
+            g.rect("#", 6, 5, 10)
+            g.rect("#", 6, 6, 10)
+            g.rect("#", 6, 7, 10)
+            g.rect("#", 7, 8, 8)
+            // piercing eyes
+            g.set(".", 8, 6); g.set(".", 13, 6)
+            // mouth
+            g.set(".", 10, 8); g.set(".", 11, 8)
+            // wings — FULL wingspan
+            if wingsUp {
+                // up stroke
+                g.set("#", 3, 4); g.set("#", 2, 5); g.set("#", 1, 6); g.set("#", 0, 7)
+                g.set("#", 3, 5); g.set("#", 2, 6); g.set("#", 1, 7); g.set("#", 1, 8)
+                g.set("#", 3, 6); g.set("#", 2, 7); g.set("#", 2, 8)
+                g.set("#", 3, 7); g.set("#", 3, 8); g.set("#", 4, 9)
+                g.set("#", 18, 4); g.set("#", 19, 5); g.set("#", 20, 6); g.set("#", 21, 7)
+                g.set("#", 18, 5); g.set("#", 19, 6); g.set("#", 20, 7); g.set("#", 20, 8)
+                g.set("#", 18, 6); g.set("#", 19, 7); g.set("#", 19, 8)
+                g.set("#", 18, 7); g.set("#", 18, 8); g.set("#", 17, 9)
+            } else {
+                // down stroke
+                g.set("#", 3, 9); g.set("#", 2, 10); g.set("#", 1, 11); g.set("#", 0, 12)
+                g.set("#", 3, 10); g.set("#", 2, 11); g.set("#", 1, 12); g.set("#", 2, 12)
+                g.set("#", 3, 11); g.set("#", 4, 11); g.set("#", 3, 12)
+                g.set("#", 18, 9); g.set("#", 19, 10); g.set("#", 20, 11); g.set("#", 21, 12)
+                g.set("#", 18, 10); g.set("#", 19, 11); g.set("#", 20, 12); g.set("#", 19, 12)
+                g.set("#", 18, 11); g.set("#", 17, 11); g.set("#", 18, 12)
+            }
+            // neck + body
+            g.rect("#", 9, 9, 4)
+            g.rect("#", 6, 10, 10)
+            g.rect("#", 5, 11, 12)
+            g.rect("#", 5, 12, 12)
+            g.rect("#", 6, 13, 10)
+            g.rect("#", 6, 14, 10)
+            // chest orb (empty hole)
+            g.set(".", 10, 12); g.set(".", 11, 12)
             // legs
-            g.rect("#", 7, 17, 2, 2)
-            g.rect("#", 13, 17, 2, 2)
-            g.rect("O", 6, 19, 4)
-            g.rect("O", 12, 19, 4)
-            g.outline("O", bodyChars: bodyChars)
+            g.rect("#", 7, 15, 2)
+            g.rect("#", 13, 15, 2)
+            g.rect("#", 6, 16, 3)
+            g.rect("#", 13, 16, 3)
+            g.rect("#", 6, 17, 3)
+            g.rect("#", 13, 17, 3)
+            g.rect("#", 5, 18, 4)
+            g.rect("#", 13, 18, 4)
+            // majestic tail
+            let ty = 13 + tailYOffset
+            g.set("#", 17, ty)
+            g.set("#", 18, ty - 1)
+            g.set("#", 19, ty - 1)
+            g.set("#", 20, ty - 2)
+            g.set("#", 20, ty - 3)
+            g.set("#", 21, ty - 3)
             return g
         }
         return ColorSprite(
             gridSize: SIZE, palette: palette,
-            frames: [build(wingsDown: true).build(), build(wingsDown: false).build()]
+            frames: [
+                build(tailYOffset: 0,  wingsUp: true,  crownFlicker: false).build(),
+                build(tailYOffset: -2, wingsUp: false, crownFlicker: true).build(),
+                build(tailYOffset: 0,  wingsUp: true,  crownFlicker: false).build(),
+                build(tailYOffset: 2,  wingsUp: false, crownFlicker: true).build(),
+            ]
         )
     }()
 

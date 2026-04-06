@@ -7,7 +7,7 @@ final class SpriteAnimator {
     private var frames: [NSImage] = []
     private var frameIndex = 0
     private var timer: Timer?
-    private var baseInterval: TimeInterval = 0.3
+    private var baseInterval: TimeInterval = 0.15
     private var speedMultiplier: Double = 1.0
     private var currentStage: Stage?
 
@@ -16,12 +16,14 @@ final class SpriteAnimator {
         currentStage = stage
         let sprite = ColorSprites.sprite(for: stage)
         frames = (0..<sprite.frames.count).map { idx in
-            PixelRenderer.renderColor(
+            let img = PixelRenderer.renderColor(
                 sprite: sprite,
                 frameIndex: idx,
                 pointSize: Self.menubarPointSize,
                 bitmapScale: 2
             )
+            img.isTemplate = true  // dark/light auto-invert (RunCat style)
+            return img
         }
         frameIndex = 0
         restart()
