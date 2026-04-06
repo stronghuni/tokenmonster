@@ -1,243 +1,250 @@
 import Cocoa
 
-/// Retro game-style dashboard (Pokémon/RPG menu vibe) shown inside an NSPopover.
+/// RunCat-inspired dashboard: muted dark gray, two cards (left info + right
+/// action bar), subtle separators, clean system typography.
 final class DashboardView: NSView {
     var onMenuRequested: (() -> Void)?
+    var onForceEvolve: (() -> Void)?
+    var onReset: (() -> Void)?
+    var onToggleLogin: (() -> Void)?
+    var onQuit: (() -> Void)?
 
-    private let root = PixelPanel()
-    private let spritePanel = PixelPanel()
+    // header
     private let spriteView = NSImageView()
+    private let titleLabel = NSTextField(labelWithString: "Flamimon")
+    private let subtitleLabel = NSTextField(labelWithString: "알")
 
-    private let namePanel = PixelPanel()
-    private let titleLabel = NSTextField(labelWithString: "FLAMIMON")
-    private let subtitleLabel = NSTextField(labelWithString: "LV. 1 · EGG")
+    // stats
+    private let todayRow = InfoRow(caption: "오늘")
+    private let weekRow  = InfoRow(caption: "이번 주")
+    private let totalRow = InfoRow(caption: "누적")
+    private let costRow  = InfoRow(caption: "비용")
 
-    private let todayStat = PixelStatBox(caption: "TODAY")
-    private let weekStat  = PixelStatBox(caption: "THIS WEEK")
-    private let totalStat = PixelStatBox(caption: "ALL TIME")
-
-    private let quotePanel = PixelPanel()
+    // quote
     private let quoteLabel = NSTextField(labelWithString: "")
 
-    private let listPanel = PixelPanel()
-    private let listHeader = NSTextField(labelWithString: "▸ PROJECTS · LAST 7 DAYS")
-    private let listStack = NSStackView()
-
-    private let menuButton = NSButton(title: "≡", target: nil, action: nil)
+    // projects
+    private let projectsHeader = NSTextField(labelWithString: "프로젝트별 · 지난 7일")
+    private let projectsStack = NSStackView()
 
     private var currentStage: Stage = .egg
 
     init() {
-        super.init(frame: NSRect(x: 0, y: 0, width: 520, height: 600))
+        super.init(frame: NSRect(x: 0, y: 0, width: 560, height: 540))
         wantsLayer = true
-        layer?.backgroundColor = RetroPalette.rootBg.cgColor
+        layer?.backgroundColor = Palette.root.cgColor
         build()
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    override var isFlipped: Bool { false }
-
     private func build() {
-        // root panel fills everything with the pixel frame
-        root.background = RetroPalette.rootBg
-        root.outerBorder = RetroPalette.borderDark
-        root.innerBorder = RetroPalette.borderLight
-        root.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(root)
+        // ===== LEFT CARD (info + projects) =====
+        let leftCard = cardView()
+        addSubview(leftCard)
 
-        // sprite panel (square, inner frame, darker bg)
-        spritePanel.background = RetroPalette.panelBg
-        spritePanel.outerBorder = RetroPalette.borderDark
-        spritePanel.innerBorder = RetroPalette.accentGold
-        spritePanel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(spritePanel)
+        // header: sprite + name stack
+        let spriteBox = NSView()
+        spriteBox.wantsLayer = true
+        spriteBox.layer?.cornerRadius = 8
+        spriteBox.layer?.backgroundColor = Palette.spriteBg.cgColor
+        spriteBox.translatesAutoresizingMaskIntoConstraints = false
+        leftCard.addSubview(spriteBox)
 
         spriteView.imageScaling = .scaleProportionallyUpOrDown
         spriteView.translatesAutoresizingMaskIntoConstraints = false
-        spritePanel.addSubview(spriteView)
+        spriteBox.addSubview(spriteView)
 
-        // name panel (right of sprite)
-        namePanel.background = RetroPalette.panelBg
-        namePanel.outerBorder = RetroPalette.borderDark
-        namePanel.innerBorder = RetroPalette.borderLight
-        namePanel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(namePanel)
-
-        titleLabel.font = RetroPalette.pixelFont(size: 18, weight: .black)
-        titleLabel.textColor = RetroPalette.accentGold
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
+        titleLabel.textColor = Palette.textPrimary
         titleLabel.drawsBackground = false
-        namePanel.addSubview(titleLabel)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        leftCard.addSubview(titleLabel)
 
-        subtitleLabel.font = RetroPalette.pixelFont(size: 11, weight: .semibold)
-        subtitleLabel.textColor = RetroPalette.textMuted
-        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        subtitleLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        subtitleLabel.textColor = Palette.textSecondary
         subtitleLabel.drawsBackground = false
-        namePanel.addSubview(subtitleLabel)
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        leftCard.addSubview(subtitleLabel)
 
-        // menu button inside name panel (right corner)
-        menuButton.isBordered = false
-        menuButton.font = RetroPalette.pixelFont(size: 18, weight: .heavy)
-        menuButton.contentTintColor = RetroPalette.accentGold
-        menuButton.target = self
-        menuButton.action = #selector(menuTapped)
-        menuButton.translatesAutoresizingMaskIntoConstraints = false
-        namePanel.addSubview(menuButton)
+        // stat rows (vertical stack)
+        let statStack = NSStackView(views: [todayRow, weekRow, totalRow, costRow])
+        statStack.orientation = .vertical
+        statStack.alignment = .leading
+        statStack.spacing = 6
+        statStack.translatesAutoresizingMaskIntoConstraints = false
+        leftCard.addSubview(statStack)
 
-        // stats row
-        [todayStat, weekStat, totalStat].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            addSubview($0)
+        // separator
+        let sep1 = separator()
+        leftCard.addSubview(sep1)
+
+        // quote
+        quoteLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        quoteLabel.textColor = Palette.textSecondary
+        quoteLabel.maximumNumberOfLines = 2
+        quoteLabel.lineBreakMode = .byTruncatingTail
+        quoteLabel.drawsBackground = false
+        quoteLabel.translatesAutoresizingMaskIntoConstraints = false
+        quoteLabel.cell?.wraps = true
+        leftCard.addSubview(quoteLabel)
+
+        // separator
+        let sep2 = separator()
+        leftCard.addSubview(sep2)
+
+        // projects header
+        projectsHeader.font = .systemFont(ofSize: 11, weight: .medium)
+        projectsHeader.textColor = Palette.textTertiary
+        projectsHeader.drawsBackground = false
+        projectsHeader.translatesAutoresizingMaskIntoConstraints = false
+        leftCard.addSubview(projectsHeader)
+
+        projectsStack.orientation = .vertical
+        projectsStack.alignment = .leading
+        projectsStack.spacing = 4
+        projectsStack.translatesAutoresizingMaskIntoConstraints = false
+        leftCard.addSubview(projectsStack)
+
+        // ===== RIGHT CARD (vertical action buttons) =====
+        let rightStack = NSStackView()
+        rightStack.orientation = .vertical
+        rightStack.alignment = .centerX
+        rightStack.spacing = 8
+        rightStack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(rightStack)
+
+        let btnMonster = ActionButton(symbol: "pawprint.fill", label: "몬스터")
+        let btnEvolve  = ActionButton(symbol: "sparkles",      label: "강제 진화")
+        let btnNewEgg  = ActionButton(symbol: "arrow.clockwise", label: "새 알")
+        let btnLogin   = ActionButton(symbol: "power",         label: "자동 실행")
+        let btnQuit    = ActionButton(symbol: "xmark",         label: "종료")
+
+        btnEvolve.onClick  = { [weak self] in self?.onForceEvolve?() }
+        btnNewEgg.onClick  = { [weak self] in self?.onReset?() }
+        btnLogin.onClick   = { [weak self] in self?.onToggleLogin?() }
+        btnQuit.onClick    = { [weak self] in self?.onQuit?() }
+        btnMonster.onClick = { [weak self] in self?.onMenuRequested?() }
+
+        [btnMonster, btnEvolve, btnNewEgg, btnLogin, btnQuit].forEach {
+            rightStack.addArrangedSubview($0)
+            $0.widthAnchor.constraint(equalToConstant: 80).isActive = true
+            $0.heightAnchor.constraint(equalToConstant: 70).isActive = true
         }
 
-        // quote panel
-        quotePanel.background = RetroPalette.panelBgAlt
-        quotePanel.outerBorder = RetroPalette.borderDark
-        quotePanel.innerBorder = RetroPalette.accentCyan
-        quotePanel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(quotePanel)
-
-        quoteLabel.font = RetroPalette.pixelFont(size: 11, weight: .medium)
-        quoteLabel.textColor = RetroPalette.textPrimary
-        quoteLabel.maximumNumberOfLines = 3
-        quoteLabel.lineBreakMode = .byWordWrapping
-        quoteLabel.cell?.wraps = true
-        quoteLabel.cell?.isScrollable = false
-        quoteLabel.translatesAutoresizingMaskIntoConstraints = false
-        quoteLabel.drawsBackground = false
-        quotePanel.addSubview(quoteLabel)
-
-        // list panel
-        listPanel.background = RetroPalette.panelBg
-        listPanel.outerBorder = RetroPalette.borderDark
-        listPanel.innerBorder = RetroPalette.borderLight
-        listPanel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(listPanel)
-
-        listHeader.font = RetroPalette.pixelFont(size: 11, weight: .black)
-        listHeader.textColor = RetroPalette.accentGold
-        listHeader.translatesAutoresizingMaskIntoConstraints = false
-        listHeader.drawsBackground = false
-        listPanel.addSubview(listHeader)
-
-        listStack.orientation = .vertical
-        listStack.alignment = .leading
-        listStack.spacing = 4
-        listStack.translatesAutoresizingMaskIntoConstraints = false
-        listPanel.addSubview(listStack)
-
-        // layout
+        // ===== layout =====
         let pad: CGFloat = 14
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: leadingAnchor),
-            root.trailingAnchor.constraint(equalTo: trailingAnchor),
-            root.topAnchor.constraint(equalTo: topAnchor),
-            root.bottomAnchor.constraint(equalTo: bottomAnchor),
+            // left card fills all but right column
+            leftCard.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
+            leftCard.topAnchor.constraint(equalTo: topAnchor, constant: pad),
+            leftCard.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -pad),
+            leftCard.trailingAnchor.constraint(equalTo: rightStack.leadingAnchor, constant: -10),
 
-            // sprite panel (top-left)
-            spritePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
-            spritePanel.topAnchor.constraint(equalTo: topAnchor, constant: pad),
-            spritePanel.widthAnchor.constraint(equalToConstant: 140),
-            spritePanel.heightAnchor.constraint(equalToConstant: 140),
+            // right stack
+            rightStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
+            rightStack.topAnchor.constraint(equalTo: topAnchor, constant: pad),
 
-            spriteView.leadingAnchor.constraint(equalTo: spritePanel.leadingAnchor, constant: 10),
-            spriteView.trailingAnchor.constraint(equalTo: spritePanel.trailingAnchor, constant: -10),
-            spriteView.topAnchor.constraint(equalTo: spritePanel.topAnchor, constant: 10),
-            spriteView.bottomAnchor.constraint(equalTo: spritePanel.bottomAnchor, constant: -10),
+            // sprite box
+            spriteBox.leadingAnchor.constraint(equalTo: leftCard.leadingAnchor, constant: 14),
+            spriteBox.topAnchor.constraint(equalTo: leftCard.topAnchor, constant: 14),
+            spriteBox.widthAnchor.constraint(equalToConstant: 64),
+            spriteBox.heightAnchor.constraint(equalToConstant: 64),
 
-            // name panel (top-right, same height as sprite)
-            namePanel.leadingAnchor.constraint(equalTo: spritePanel.trailingAnchor, constant: 10),
-            namePanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
-            namePanel.topAnchor.constraint(equalTo: topAnchor, constant: pad),
-            namePanel.heightAnchor.constraint(equalToConstant: 66),
+            spriteView.topAnchor.constraint(equalTo: spriteBox.topAnchor, constant: 4),
+            spriteView.leadingAnchor.constraint(equalTo: spriteBox.leadingAnchor, constant: 4),
+            spriteView.trailingAnchor.constraint(equalTo: spriteBox.trailingAnchor, constant: -4),
+            spriteView.bottomAnchor.constraint(equalTo: spriteBox.bottomAnchor, constant: -4),
 
-            titleLabel.leadingAnchor.constraint(equalTo: namePanel.leadingAnchor, constant: 12),
-            titleLabel.topAnchor.constraint(equalTo: namePanel.topAnchor, constant: 10),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: menuButton.leadingAnchor, constant: -6),
+            // title + subtitle
+            titleLabel.leadingAnchor.constraint(equalTo: spriteBox.trailingAnchor, constant: 12),
+            titleLabel.topAnchor.constraint(equalTo: spriteBox.topAnchor, constant: 8),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: leftCard.trailingAnchor, constant: -14),
 
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
 
-            menuButton.trailingAnchor.constraint(equalTo: namePanel.trailingAnchor, constant: -10),
-            menuButton.centerYAnchor.constraint(equalTo: namePanel.centerYAnchor),
-            menuButton.widthAnchor.constraint(equalToConstant: 22),
+            // stat stack below sprite
+            statStack.leadingAnchor.constraint(equalTo: leftCard.leadingAnchor, constant: 14),
+            statStack.trailingAnchor.constraint(equalTo: leftCard.trailingAnchor, constant: -14),
+            statStack.topAnchor.constraint(equalTo: spriteBox.bottomAnchor, constant: 14),
 
-            // stats row: below namePanel, same width
-            todayStat.leadingAnchor.constraint(equalTo: namePanel.leadingAnchor),
-            todayStat.topAnchor.constraint(equalTo: namePanel.bottomAnchor, constant: 8),
-            todayStat.heightAnchor.constraint(equalToConstant: 60),
+            // separator 1
+            sep1.leadingAnchor.constraint(equalTo: leftCard.leadingAnchor, constant: 14),
+            sep1.trailingAnchor.constraint(equalTo: leftCard.trailingAnchor, constant: -14),
+            sep1.topAnchor.constraint(equalTo: statStack.bottomAnchor, constant: 12),
+            sep1.heightAnchor.constraint(equalToConstant: 1),
 
-            weekStat.leadingAnchor.constraint(equalTo: todayStat.trailingAnchor, constant: 8),
-            weekStat.topAnchor.constraint(equalTo: todayStat.topAnchor),
-            weekStat.bottomAnchor.constraint(equalTo: todayStat.bottomAnchor),
-            weekStat.widthAnchor.constraint(equalTo: todayStat.widthAnchor),
+            // quote
+            quoteLabel.leadingAnchor.constraint(equalTo: leftCard.leadingAnchor, constant: 14),
+            quoteLabel.trailingAnchor.constraint(equalTo: leftCard.trailingAnchor, constant: -14),
+            quoteLabel.topAnchor.constraint(equalTo: sep1.bottomAnchor, constant: 10),
 
-            totalStat.leadingAnchor.constraint(equalTo: weekStat.trailingAnchor, constant: 8),
-            totalStat.topAnchor.constraint(equalTo: todayStat.topAnchor),
-            totalStat.bottomAnchor.constraint(equalTo: todayStat.bottomAnchor),
-            totalStat.widthAnchor.constraint(equalTo: todayStat.widthAnchor),
-            totalStat.trailingAnchor.constraint(equalTo: namePanel.trailingAnchor),
+            // separator 2
+            sep2.leadingAnchor.constraint(equalTo: leftCard.leadingAnchor, constant: 14),
+            sep2.trailingAnchor.constraint(equalTo: leftCard.trailingAnchor, constant: -14),
+            sep2.topAnchor.constraint(equalTo: quoteLabel.bottomAnchor, constant: 10),
+            sep2.heightAnchor.constraint(equalToConstant: 1),
 
-            // quote panel (full width, below sprite + stats)
-            quotePanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
-            quotePanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
-            quotePanel.topAnchor.constraint(equalTo: spritePanel.bottomAnchor, constant: 10),
-            quotePanel.heightAnchor.constraint(equalToConstant: 54),
+            // projects header
+            projectsHeader.leadingAnchor.constraint(equalTo: leftCard.leadingAnchor, constant: 14),
+            projectsHeader.topAnchor.constraint(equalTo: sep2.bottomAnchor, constant: 10),
 
-            quoteLabel.leadingAnchor.constraint(equalTo: quotePanel.leadingAnchor, constant: 12),
-            quoteLabel.trailingAnchor.constraint(equalTo: quotePanel.trailingAnchor, constant: -12),
-            quoteLabel.topAnchor.constraint(equalTo: quotePanel.topAnchor, constant: 8),
-            quoteLabel.bottomAnchor.constraint(equalTo: quotePanel.bottomAnchor, constant: -8),
-
-            // list panel (fills the rest)
-            listPanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
-            listPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
-            listPanel.topAnchor.constraint(equalTo: quotePanel.bottomAnchor, constant: 10),
-            listPanel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -pad),
-
-            listHeader.leadingAnchor.constraint(equalTo: listPanel.leadingAnchor, constant: 12),
-            listHeader.topAnchor.constraint(equalTo: listPanel.topAnchor, constant: 10),
-
-            listStack.leadingAnchor.constraint(equalTo: listPanel.leadingAnchor, constant: 10),
-            listStack.trailingAnchor.constraint(equalTo: listPanel.trailingAnchor, constant: -10),
-            listStack.topAnchor.constraint(equalTo: listHeader.bottomAnchor, constant: 8),
-            listStack.bottomAnchor.constraint(lessThanOrEqualTo: listPanel.bottomAnchor, constant: -10),
+            projectsStack.leadingAnchor.constraint(equalTo: leftCard.leadingAnchor, constant: 14),
+            projectsStack.trailingAnchor.constraint(equalTo: leftCard.trailingAnchor, constant: -14),
+            projectsStack.topAnchor.constraint(equalTo: projectsHeader.bottomAnchor, constant: 6),
+            projectsStack.bottomAnchor.constraint(lessThanOrEqualTo: leftCard.bottomAnchor, constant: -14),
         ])
     }
 
-    @objc private func menuTapped() { onMenuRequested?() }
+    private func cardView() -> NSView {
+        let v = NSView()
+        v.wantsLayer = true
+        v.layer?.cornerRadius = 10
+        v.layer?.backgroundColor = Palette.card.cgColor
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }
+
+    private func separator() -> NSView {
+        let v = NSView()
+        v.wantsLayer = true
+        v.layer?.backgroundColor = Palette.separator.cgColor
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }
 
     func apply(snapshot: UsageSnapshot, quote: String) {
-        titleLabel.stringValue = "FLAMIMON"
-        subtitleLabel.stringValue = "LV. \(snapshot.stage.rawValue + 1) · " + Self.stageEN(snapshot.stage)
+        titleLabel.stringValue = "Flamimon"
+        subtitleLabel.stringValue = "Lv. \(snapshot.stage.rawValue + 1)  ·  \(snapshot.stage.displayName)"
         quoteLabel.stringValue = "\u{201C}\(quote)\u{201D}"
 
         let weeklyTotal = snapshot.weeklyProjects.reduce(Int64(0)) { $0 + $1.weeklyTokens }
-        todayStat.setValue(Self.short(snapshot.todayTokens))
-        weekStat.setValue(Self.short(weeklyTotal))
-        totalStat.setValue(Self.short(snapshot.totalTokens))
+        todayRow.setValue(Self.short(snapshot.todayTokens) + " 토큰")
+        weekRow.setValue(Self.short(weeklyTotal) + " 토큰")
+        totalRow.setValue(Self.short(snapshot.totalTokens) + " 토큰")
+        costRow.setValue(String(format: "$%.2f", snapshot.totalCostUSD))
 
-        // sprite — use HIGH-RES (48x48) version for dashboard
+        // sprite
         if snapshot.stage != currentStage || spriteView.image == nil {
             currentStage = snapshot.stage
             let s = LargeSprites.sprite(for: snapshot.stage)
             spriteView.image = PixelRenderer.renderColor(
-                sprite: s, frameIndex: 0, pointSize: 120, bitmapScale: 2
+                sprite: s, frameIndex: 0, pointSize: 60, bitmapScale: 2
             )
         }
 
-        // projects
-        listStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        // project rows
+        projectsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         if snapshot.weeklyProjects.isEmpty {
-            let l = NSTextField(labelWithString: "  (NO DATA — keep using Claude Code)")
-            l.font = RetroPalette.pixelFont(size: 11, weight: .medium)
-            l.textColor = RetroPalette.textMuted
+            let l = NSTextField(labelWithString: "데이터를 모으는 중…")
+            l.font = .systemFont(ofSize: 12)
+            l.textColor = Palette.textTertiary
             l.drawsBackground = false
-            listStack.addArrangedSubview(l)
+            projectsStack.addArrangedSubview(l)
             return
         }
-        for (idx, wp) in snapshot.weeklyProjects.prefix(8).enumerated() {
-            listStack.addArrangedSubview(PixelProjectRow(project: wp, zebra: idx % 2 == 1))
+        for wp in snapshot.weeklyProjects.prefix(6) {
+            projectsStack.addArrangedSubview(ProjectRow(project: wp))
         }
     }
 
@@ -248,20 +255,25 @@ final class DashboardView: NSView {
         if d >= 1_000         { return String(format: "%.0fk", d / 1e3) }
         return "\(n)"
     }
-    private static func stageEN(_ s: Stage) -> String {
-        switch s {
-        case .egg:      return "EGG"
-        case .baby:     return "FLAMKIN"
-        case .child:    return "FLAMON"
-        case .teen:     return "BLAZON"
-        case .adult:    return "INFERNON"
-        case .ultimate: return "PHOENIGNIS"
-        }
-    }
 }
 
-// MARK: - Pixel stat box (single number with caption)
-final class PixelStatBox: PixelPanel {
+// MARK: - Palette
+enum Palette {
+    static let root           = NSColor(srgbRed: 0.16, green: 0.16, blue: 0.17, alpha: 1)
+    static let card           = NSColor(srgbRed: 0.22, green: 0.22, blue: 0.23, alpha: 1)
+    static let cardHover      = NSColor(srgbRed: 0.27, green: 0.27, blue: 0.28, alpha: 1)
+    static let spriteBg       = NSColor(srgbRed: 0.12, green: 0.12, blue: 0.13, alpha: 1)
+    static let separator      = NSColor(white: 1, alpha: 0.08)
+    static let textPrimary    = NSColor(white: 1, alpha: 0.96)
+    static let textSecondary  = NSColor(white: 1, alpha: 0.62)
+    static let textTertiary   = NSColor(white: 1, alpha: 0.42)
+    static let accentBlue     = NSColor(srgbRed: 0.30, green: 0.58, blue: 0.96, alpha: 1)
+    static let accentRed      = NSColor(srgbRed: 0.90, green: 0.35, blue: 0.35, alpha: 1)
+    static let accentYellow   = NSColor(srgbRed: 0.98, green: 0.78, blue: 0.24, alpha: 1)
+}
+
+// MARK: - InfoRow (caption ——— value)
+final class InfoRow: NSView {
     private let captionLabel: NSTextField
     private let valueLabel: NSTextField
 
@@ -269,32 +281,28 @@ final class PixelStatBox: PixelPanel {
         self.captionLabel = NSTextField(labelWithString: caption)
         self.valueLabel = NSTextField(labelWithString: "0")
         super.init(frame: .zero)
-        background = RetroPalette.panelBgAlt
-        outerBorder = RetroPalette.borderDark
-        innerBorder = RetroPalette.accentGold
-        wantsLayer = true
-
-        captionLabel.font = RetroPalette.pixelFont(size: 9, weight: .heavy)
-        captionLabel.textColor = RetroPalette.textMuted
+        captionLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        captionLabel.textColor = Palette.textSecondary
         captionLabel.drawsBackground = false
         captionLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(captionLabel)
 
-        valueLabel.font = RetroPalette.pixelFont(size: 18, weight: .black)
-        valueLabel.textColor = RetroPalette.textPrimary
+        valueLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        valueLabel.textColor = Palette.textPrimary
         valueLabel.drawsBackground = false
+        valueLabel.alignment = .right
         valueLabel.translatesAutoresizingMaskIntoConstraints = false
-        valueLabel.alignment = .center
         addSubview(valueLabel)
 
         NSLayoutConstraint.activate([
-            captionLabel.topAnchor.constraint(equalTo: topAnchor, constant: 8),
-            captionLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            heightAnchor.constraint(equalToConstant: 18),
+            captionLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
+            captionLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
 
-            valueLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
-            valueLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            valueLabel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 6),
-            valueLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6),
+            valueLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
+            valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            widthAnchor.constraint(greaterThanOrEqualToConstant: 240),
         ])
     }
     required init?(coder: NSCoder) { fatalError() }
@@ -302,62 +310,45 @@ final class PixelStatBox: PixelPanel {
     func setValue(_ s: String) { valueLabel.stringValue = s }
 }
 
-// MARK: - Pixel project row (ball icon + name + tokens + tier)
-final class PixelProjectRow: NSView {
-    init(project: WeeklyProject, zebra: Bool) {
+// MARK: - ProjectRow (ball icon · name · tokens)
+final class ProjectRow: NSView {
+    init(project: WeeklyProject) {
         super.init(frame: .zero)
-        wantsLayer = true
-        layer?.backgroundColor = (zebra ? RetroPalette.panelBgAlt : RetroPalette.panelBg).cgColor
-        layer?.cornerRadius = 2
-
         let ball = NSImageView()
-        ball.image = BallSprites.image(for: project.tier, pointSize: 26)
+        ball.image = BallSprites.image(for: project.tier, pointSize: 18)
         ball.imageScaling = .scaleProportionallyUpOrDown
         ball.translatesAutoresizingMaskIntoConstraints = false
 
-        let name = NSTextField(labelWithString: project.name.uppercased())
-        name.font = RetroPalette.pixelFont(size: 12, weight: .bold)
-        name.textColor = RetroPalette.textPrimary
+        let name = NSTextField(labelWithString: project.name)
+        name.font = .systemFont(ofSize: 12, weight: .medium)
+        name.textColor = Palette.textPrimary
         name.drawsBackground = false
         name.translatesAutoresizingMaskIntoConstraints = false
         name.lineBreakMode = .byTruncatingTail
 
         let tokens = NSTextField(labelWithString: Self.short(project.weeklyTokens))
-        tokens.font = RetroPalette.pixelFont(size: 12, weight: .heavy)
-        tokens.textColor = RetroPalette.accentGold
-        tokens.alignment = .right
+        tokens.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+        tokens.textColor = Palette.textSecondary
         tokens.drawsBackground = false
+        tokens.alignment = .right
         tokens.translatesAutoresizingMaskIntoConstraints = false
 
-        let tierLabel = NSTextField(labelWithString: Self.tierTag(project.tier))
-        tierLabel.font = RetroPalette.pixelFont(size: 9, weight: .black)
-        tierLabel.textColor = Self.tierColor(project.tier)
-        tierLabel.drawsBackground = false
-        tierLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        addSubview(ball)
-        addSubview(name)
-        addSubview(tokens)
-        addSubview(tierLabel)
+        addSubview(ball); addSubview(name); addSubview(tokens)
 
         NSLayoutConstraint.activate([
-            heightAnchor.constraint(equalToConstant: 30),
+            heightAnchor.constraint(equalToConstant: 22),
 
-            ball.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
+            ball.leadingAnchor.constraint(equalTo: leadingAnchor),
             ball.centerYAnchor.constraint(equalTo: centerYAnchor),
-            ball.widthAnchor.constraint(equalToConstant: 26),
-            ball.heightAnchor.constraint(equalToConstant: 26),
+            ball.widthAnchor.constraint(equalToConstant: 20),
+            ball.heightAnchor.constraint(equalToConstant: 20),
 
-            name.leadingAnchor.constraint(equalTo: ball.trailingAnchor, constant: 10),
+            name.leadingAnchor.constraint(equalTo: ball.trailingAnchor, constant: 8),
             name.centerYAnchor.constraint(equalTo: centerYAnchor),
 
-            tierLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            tierLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            tokens.trailingAnchor.constraint(equalTo: tierLabel.leadingAnchor, constant: -10),
+            tokens.trailingAnchor.constraint(equalTo: trailingAnchor),
             tokens.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            name.trailingAnchor.constraint(lessThanOrEqualTo: tokens.leadingAnchor, constant: -10),
+            tokens.leadingAnchor.constraint(greaterThanOrEqualTo: name.trailingAnchor, constant: 8),
         ])
     }
     required init?(coder: NSCoder) { fatalError() }
@@ -369,18 +360,70 @@ final class PixelProjectRow: NSView {
         if d >= 1_000         { return String(format: "%.0fk", d / 1e3) }
         return "\(n)"
     }
-    private static func tierTag(_ t: BallTier) -> String {
-        switch t {
-        case .monster:   return "MONSTER"
-        case .superBall: return "SUPER"
-        case .hyper:     return "HYPER"
+}
+
+// MARK: - ActionButton (SF Symbol + label, vertical card)
+final class ActionButton: NSView {
+    var onClick: (() -> Void)?
+    private let icon = NSImageView()
+    private let label = NSTextField(labelWithString: "")
+    private var tracking: NSTrackingArea?
+    private var hovered = false { didSet { updateAppearance() } }
+
+    init(symbol: String, label text: String) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.backgroundColor = Palette.card.cgColor
+
+        if let img = NSImage(systemSymbolName: symbol, accessibilityDescription: text) {
+            let config = NSImage.SymbolConfiguration(pointSize: 22, weight: .regular)
+            icon.image = img.withSymbolConfiguration(config)
         }
+        icon.contentTintColor = Palette.textPrimary
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(icon)
+
+        label.stringValue = text
+        label.font = .systemFont(ofSize: 11, weight: .medium)
+        label.textColor = Palette.textSecondary
+        label.alignment = .center
+        label.drawsBackground = false
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            icon.centerXAnchor.constraint(equalTo: centerXAnchor),
+            icon.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            icon.widthAnchor.constraint(equalToConstant: 26),
+            icon.heightAnchor.constraint(equalToConstant: 26),
+
+            label.centerXAnchor.constraint(equalTo: centerXAnchor),
+            label.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 6),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 4),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -4),
+        ])
     }
-    private static func tierColor(_ t: BallTier) -> NSColor {
-        switch t {
-        case .monster:   return RetroPalette.accentRed
-        case .superBall: return RetroPalette.accentBlue
-        case .hyper:     return RetroPalette.accentGold
-        }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tracking { removeTrackingArea(tracking) }
+        let t = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(t)
+        tracking = t
+    }
+
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent)  { hovered = false }
+    override func mouseDown(with event: NSEvent) { onClick?() }
+
+    private func updateAppearance() {
+        layer?.backgroundColor = (hovered ? Palette.cardHover : Palette.card).cgColor
     }
 }
