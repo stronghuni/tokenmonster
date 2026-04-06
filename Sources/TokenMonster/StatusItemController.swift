@@ -9,7 +9,8 @@ final class StatusItemController {
     private let menu = NSMenu()
 
     private let stageItem  = NSMenuItem(title: "🥚 Flamimon (알)", action: nil, keyEquivalent: "")
-    private let hintItem   = NSMenuItem(title: "뭔가 꿈틀거린다…", action: nil, keyEquivalent: "")
+    private let hintItem   = NSMenuItem(title: MonsterQuotes.random(), action: nil, keyEquivalent: "")
+    private var quoteTimer: Timer?
     private let totalItem  = NSMenuItem(title: "누적  0 토큰", action: nil, keyEquivalent: "")
     private let todayItem  = NSMenuItem(title: "오늘  0 토큰", action: nil, keyEquivalent: "")
     private let tpmItem    = NSMenuItem(title: "속도  0 tok/min", action: nil, keyEquivalent: "")
@@ -24,6 +25,15 @@ final class StatusItemController {
 
     func start() {
         animator.setStage(.egg)
+        // Rotate the monster's quote every 20 seconds while idle.
+        let t = Timer(timeInterval: 20, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            if !self.hintItem.title.hasPrefix("✨") {
+                self.hintItem.title = MonsterQuotes.random()
+            }
+        }
+        quoteTimer = t
+        RunLoop.main.add(t, forMode: .common)
     }
 
     private func buildMenu() {
@@ -79,14 +89,14 @@ final class StatusItemController {
 
     @objc private func quit() { NSApp.terminate(nil) }
 
-    /// Temporarily overrides the hint text for 5 seconds (used on evolution).
+    /// Temporarily overrides the hint text for 5 seconds (used on evolution),
+    /// then returns to a random monster quote.
     func flashHint(_ text: String) {
         DispatchQueue.main.async {
-            let original = self.hintItem.title
             self.hintItem.title = text
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                 if self.hintItem.title == text {
-                    self.hintItem.title = original
+                    self.hintItem.title = MonsterQuotes.random()
                 }
             }
         }
@@ -107,7 +117,6 @@ final class StatusItemController {
     func apply(snapshot: UsageSnapshot) {
         DispatchQueue.main.async {
             self.stageItem.title = "🥚 Flamimon (\(snapshot.stage.displayName))"
-            self.hintItem.title  = Self.hint(for: snapshot.stage)
             self.totalItem.title = "누적  \(Self.fmt(snapshot.totalTokens)) 토큰"
             self.todayItem.title = "오늘  \(Self.fmt(snapshot.todayTokens)) 토큰"
             self.tpmItem.title   = "속도  \(Self.fmt(Int64(snapshot.tokensPerMinute))) tok/min"

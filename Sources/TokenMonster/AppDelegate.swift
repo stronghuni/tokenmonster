@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tracker.onEvolution = { [weak self] from, to in
             DispatchQueue.main.async {
                 EvolutionFX.playHaptic()
-                self?.controller.animator.playEvolutionFlash()
+                self?.controller.animator.playEvolutionShake()
                 self?.controller.flashHint("✨ \(from.displayName) → \(to.displayName)!")
             }
         }

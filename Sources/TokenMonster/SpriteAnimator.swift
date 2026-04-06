@@ -57,22 +57,40 @@ final class SpriteAnimator {
         }
     }
 
-    /// Briefly flashes the status icon by inverting + scaling.
+    /// Shakes the status icon left-right for 3 seconds (no blink).
     /// Used for evolution feedback together with haptics.
-    func playEvolutionFlash() {
+    func playEvolutionShake() {
         guard let btn = statusButton, !frames.isEmpty else { return }
-        // Blink 6 times by toggling image alpha/tint
-        let baseImage = frames[frameIndex % frames.count]
+        timer?.invalidate()
+        let base = frames[frameIndex % frames.count]
+        let shakeFrames: [NSImage] = [
+            Self.shifted(base, dx: -1),
+            base,
+            Self.shifted(base, dx: 1),
+            base,
+        ]
         var count = 0
-        Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { t in
+        let interval: TimeInterval = 0.08
+        let ticks = Int(3.0 / interval)
+        Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] t in
+            btn.image = shakeFrames[count % shakeFrames.count]
             count += 1
-            btn.appearsDisabled = (count % 2 == 0) ? false : true
-            if count >= 10 {
-                btn.appearsDisabled = false
+            if count >= ticks {
                 t.invalidate()
-                btn.image = baseImage
+                self?.restart()
             }
         }
+    }
+
+    private static func shifted(_ img: NSImage, dx: Int) -> NSImage {
+        let out = NSImage(size: NSSize(width: 22, height: 22))
+        out.lockFocus()
+        img.draw(at: NSPoint(x: CGFloat(dx), y: 0),
+                 from: NSRect(origin: .zero, size: img.size),
+                 operation: .copy, fraction: 1)
+        out.unlockFocus()
+        out.isTemplate = true
+        return out
     }
 
     private func restart() {
