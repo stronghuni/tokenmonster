@@ -2,7 +2,7 @@ import Cocoa
 
 final class SpriteAnimator {
     weak var statusButton: NSStatusBarButton?
-    static let menubarPointSize: CGFloat = 32
+    static let menubarPointSize: CGFloat = 22
 
     private var frames: [NSImage] = []
     private var frameIndex = 0
