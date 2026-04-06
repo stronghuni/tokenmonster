@@ -6,9 +6,21 @@ final class SpriteAnimator {
     private var frames: [NSImage] = []
     private var frameIndex = 0
     private var timer: Timer?
-    private var baseInterval: TimeInterval = 0.4
+    private var baseInterval: TimeInterval = 0.22
     private var speedMultiplier: Double = 1.0
     private var currentStage: Stage?
+
+    /// Builds a 4-frame breathing cycle from two source grids:
+    /// A(bob=0) → A(bob=1, lifted) → B(bob=0) → B(bob=-1, squashed)
+    /// This gives an actual "jumping/breathing" feel in tight canvas.
+    private static func breathe(_ a: [[Int]], _ b: [[Int]]) -> [NSImage] {
+        [
+            PixelRenderer.render(grid: a, yBob: 0),
+            PixelRenderer.render(grid: a, yBob: 1),
+            PixelRenderer.render(grid: b, yBob: 0),
+            PixelRenderer.render(grid: b, yBob: -1),
+        ]
+    }
 
     func setStage(_ stage: Stage) {
         guard stage != currentStage else { return }
@@ -16,27 +28,20 @@ final class SpriteAnimator {
 
         switch stage {
         case .egg:
+            // Egg just wobbles left-right (6 frames for smoother motion)
             frames = [
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees: -6),
+                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees: -8),
+                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees: -4),
                 PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  0),
-                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  6),
+                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  4),
+                PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  8),
                 PixelRenderer.render(grid: PixelSprites.eggA, rotationDegrees:  0),
             ]
-        case .baby:
-            frames = [ PixelRenderer.render(grid: PixelSprites.babyA),
-                       PixelRenderer.render(grid: PixelSprites.babyB) ]
-        case .child:
-            frames = [ PixelRenderer.render(grid: PixelSprites.childA),
-                       PixelRenderer.render(grid: PixelSprites.childB) ]
-        case .teen:
-            frames = [ PixelRenderer.render(grid: PixelSprites.teenA),
-                       PixelRenderer.render(grid: PixelSprites.teenB) ]
-        case .adult:
-            frames = [ PixelRenderer.render(grid: PixelSprites.adultA),
-                       PixelRenderer.render(grid: PixelSprites.adultB) ]
-        case .ultimate:
-            frames = [ PixelRenderer.render(grid: PixelSprites.ultimateA),
-                       PixelRenderer.render(grid: PixelSprites.ultimateB) ]
+        case .baby:    frames = Self.breathe(PixelSprites.babyA,     PixelSprites.babyB)
+        case .child:   frames = Self.breathe(PixelSprites.childA,    PixelSprites.childB)
+        case .teen:    frames = Self.breathe(PixelSprites.teenA,     PixelSprites.teenB)
+        case .adult:   frames = Self.breathe(PixelSprites.adultA,    PixelSprites.adultB)
+        case .ultimate:frames = Self.breathe(PixelSprites.ultimateA, PixelSprites.ultimateB)
         }
         frameIndex = 0
         restart()

@@ -31,6 +31,7 @@ final class TokenTracker {
         return dir.appendingPathComponent("state.json")
     }()
     private var _baseline: Int64?
+    private var forceBonus: Int64 = 0
     private var hasBaseline: Bool { _baseline != nil }
     private var baseline: Int64 {
         get { _baseline ?? 0 }
@@ -41,11 +42,13 @@ final class TokenTracker {
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         if let b = obj["baseline"] as? Int { _baseline = Int64(b) }
         if let s = obj["stage"] as? Int, let stage = Stage(rawValue: s) { lastKnownStage = stage }
+        if let f = obj["forceBonus"] as? Int { forceBonus = Int64(f) }
     }
     private func saveState() {
         let obj: [String: Any] = [
             "baseline": Int(_baseline ?? 0),
             "stage": lastKnownStage.rawValue,
+            "forceBonus": Int(forceBonus),
         ]
         if let data = try? JSONSerialization.data(withJSONObject: obj) {
             try? data.write(to: stateURL)
@@ -59,13 +62,14 @@ final class TokenTracker {
     }
 
     /// Re-hatches: current absolute total becomes the new zero point.
-    /// Debug: artificially lower the baseline to trigger the next stage.
+    /// Debug: push forceBonus so the next stage threshold is immediately met.
     func forceEvolveNextStage() {
         let absolute = projectTotals.values.reduce(0, +)
+        let current = max(0, absolute - baseline) + forceBonus
         guard let next = Stage(rawValue: lastKnownStage.rawValue + 1) else { return }
-        let need = next.threshold
-        // set baseline so that (absolute - baseline) == need
-        baseline = max(0, absolute - need)
+        if current < next.threshold {
+            forceBonus += (next.threshold - current)
+        }
         saveState()
         publish(addedNow: 0)
     }
@@ -73,6 +77,7 @@ final class TokenTracker {
     func resetBaseline() {
         let absolute = projectTotals.values.reduce(0, +)
         baseline = absolute
+        forceBonus = 0
         todayTokens = 0
         recentBuckets.removeAll()
         lastKnownStage = .egg
@@ -82,7 +87,7 @@ final class TokenTracker {
 
     func start() {
         scan()
-        let t = Timer(timeInterval: 10, repeats: true) { [weak self] _ in self?.scan() }
+        let t = Timer(timeInterval: 5, repeats: true) { [weak self] _ in self?.scan() }
         timer = t
         RunLoop.main.add(t, forMode: .common)
     }
@@ -162,14 +167,18 @@ final class TokenTracker {
         return added
     }
 
+    private let activityWindowSec: TimeInterval = 15
+
     private func publish(addedNow: Int64) {
         let now = Date()
         if addedNow > 0 { recentBuckets.append((now, addedNow)) }
-        recentBuckets.removeAll { now.timeIntervalSince($0.time) > 60 }
-        let tpm = Double(recentBuckets.reduce(0) { $0 + $1.tokens })
+        recentBuckets.removeAll { now.timeIntervalSince($0.time) > activityWindowSec }
+        // Normalize "tokens in the last N seconds" to a per-minute rate.
+        let tokensInWindow = recentBuckets.reduce(0) { $0 + $1.tokens }
+        let tpm = Double(tokensInWindow) * (60.0 / activityWindowSec)
 
         let absoluteTotal = projectTotals.values.reduce(0, +)
-        let monsterTotal = max(0, absoluteTotal - baseline)
+        let monsterTotal = max(0, absoluteTotal - baseline) + forceBonus
         let sorted = projectTotals
             .map { (name: TokenTracker.prettyName($0.key), tokens: $0.value) }
             .sorted { $0.tokens > $1.tokens }

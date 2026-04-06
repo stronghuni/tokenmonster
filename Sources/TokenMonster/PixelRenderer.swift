@@ -3,7 +3,7 @@ import Cocoa
 enum PixelRenderer {
     /// Renders a 22x22 grid to a template NSImage.
     /// rotationDegrees rotates around the bottom-center (for egg wobble).
-    static func render(grid: [[Int]], rotationDegrees: CGFloat = 0) -> NSImage {
+    static func render(grid: [[Int]], rotationDegrees: CGFloat = 0, yBob: Int = 0) -> NSImage {
         let size = NSSize(width: 22, height: 22)
         let image = NSImage(size: size)
         image.lockFocus()
@@ -21,7 +21,8 @@ enum PixelRenderer {
         ctx.setFillColor(NSColor.black.cgColor)
         for (row, line) in grid.enumerated() {
             // SVG-style top-down row → flip to NSImage bottom-up y
-            let y = 22 - 1 - row
+            // yBob > 0 lifts the sprite up (toward top of canvas in screen terms)
+            let y = 22 - 1 - row - yBob
             for (col, v) in line.enumerated() where v == 1 {
                 ctx.fill(CGRect(x: col, y: y, width: 1, height: 1))
             }
