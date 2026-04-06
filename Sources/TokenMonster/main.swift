@@ -15,14 +15,16 @@ if CommandLine.arguments.contains("--render-dashboard") {
         totalTokens: 45_200_000,
         todayTokens: 3_421_000,
         tokensPerMinute: 4_200,
-        projects: [
-            (name: "marry", tokens: 1_486_258_762),
-            (name: "api", tokens: 913_178_160),
-            (name: "main", tokens: 686_917_278),
-            (name: "megaharness", tokens: 290_917_011),
-            (name: "monster", tokens: 97_949_671),
+        projects: [],
+        weeklyProjects: [
+            WeeklyProject(name: "marry",       weeklyTokens: 24_500_000, tier: .hyper),
+            WeeklyProject(name: "api",         weeklyTokens: 12_800_000, tier: .hyper),
+            WeeklyProject(name: "main",        weeklyTokens:  5_200_000, tier: .superBall),
+            WeeklyProject(name: "megaharness", weeklyTokens:  1_900_000, tier: .superBall),
+            WeeklyProject(name: "monster",     weeklyTokens:    640_000, tier: .monster),
+            WeeklyProject(name: "playground",  weeklyTokens:    120_000, tier: .monster),
         ],
-        stage: .baby,
+        stage: .child,
         totalCostUSD: 128.45
     )
     view.apply(snapshot: fake, quote: "용기는 무모하게 달려드는 게 아니야. 두려움을 이겨내고 친구를 위해 나서는 마음이야")

@@ -1,12 +1,23 @@
 import Foundation
 
+enum BallTier: Int {
+    case monster = 0, superBall = 1, hyper = 2
+}
+
+struct WeeklyProject {
+    let name: String
+    let weeklyTokens: Int64
+    let tier: BallTier
+}
+
 struct UsageSnapshot {
     let totalTokens: Int64        // since baseline
     let todayTokens: Int64
     let tokensPerMinute: Double
-    let projects: [(name: String, tokens: Int64)]
+    let projects: [(name: String, tokens: Int64)]   // lifetime
+    let weeklyProjects: [WeeklyProject]             // last 7 days, ranked
     let stage: Stage
-    let totalCostUSD: Double      // lifetime (absolute) cost estimate
+    let totalCostUSD: Double
 }
 
 final class TokenTracker {
@@ -17,7 +28,28 @@ final class TokenTracker {
     private let claudeRoot: URL
     private var fileOffsets: [String: UInt64] = [:]
     private var projectTotals: [String: Int64] = [:]
+    // weekly: project -> day-key (yyyy-MM-dd) -> tokens
+    private var projectDaily: [String: [String: Int64]] = [:]
     private var totalCostUSD: Double = 0
+
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone.current
+        return f
+    }()
+    private static let iso8601Parser: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let iso8601ParserNoMs: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+    private static func parseDate(_ s: String) -> Date? {
+        iso8601Parser.date(from: s) ?? iso8601ParserNoMs.date(from: s)
+    }
     private var todayTokens: Int64 = 0
     private var todayDate: String = TokenTracker.todayKey()
     private var recentBuckets: [(time: Date, tokens: Int64)] = []
@@ -163,6 +195,12 @@ final class TokenTracker {
             totalCostUSD += CostCalculator.cost(
                 model: model, input: inT, output: outT, cacheCreate: cC, cacheRead: cR
             )
+
+            // weekly bucket — parse entry timestamp
+            if let ts = obj["timestamp"] as? String, let date = Self.parseDate(ts) {
+                let key = Self.dayKeyFormatter.string(from: date)
+                projectDaily[projectName, default: [:]][key, default: 0] += total
+            }
         }
         return added
     }
@@ -183,12 +221,37 @@ final class TokenTracker {
             .map { (name: TokenTracker.prettyName($0.key), tokens: $0.value) }
             .sorted { $0.tokens > $1.tokens }
 
+        // weekly: collect days within last 7
+        let dayFmt = Self.dayKeyFormatter
+        let today = Date()
+        let cal = Calendar.current
+        var validDayKeys = Set<String>()
+        for i in 0..<7 {
+            if let d = cal.date(byAdding: .day, value: -i, to: today) {
+                validDayKeys.insert(dayFmt.string(from: d))
+            }
+        }
+        var weeklyRaw: [(String, Int64)] = []
+        for (proj, days) in projectDaily {
+            let sum = days.filter { validDayKeys.contains($0.key) }
+                          .values.reduce(0, +)
+            if sum > 0 {
+                weeklyRaw.append((TokenTracker.prettyName(proj), sum))
+            }
+        }
+        weeklyRaw.sort { $0.1 > $1.1 }
+        let weeklyProjects: [WeeklyProject] = weeklyRaw.map { entry in
+            let tier = Self.tier(for: entry.1)
+            return WeeklyProject(name: entry.0, weeklyTokens: entry.1, tier: tier)
+        }
+
         let newStage = Stage.from(totalTokens: monsterTotal)
         onUpdate?(UsageSnapshot(
             totalTokens: monsterTotal,
             todayTokens: todayTokens,
             tokensPerMinute: tpm,
             projects: sorted,
+            weeklyProjects: weeklyProjects,
             stage: newStage,
             totalCostUSD: totalCostUSD
         ))
@@ -210,5 +273,14 @@ final class TokenTracker {
 
     private static func prettyName(_ raw: String) -> String {
         raw.split(separator: "-").last.map(String.init) ?? raw
+    }
+
+    /// Weekly-tokens → ball tier thresholds.
+    private static func tier(for weekly: Int64) -> BallTier {
+        switch weekly {
+        case ..<1_000_000:         return .monster     // < 1M/week
+        case 1_000_000..<10_000_000: return .superBall  // 1M–10M/week
+        default:                    return .hyper       // ≥ 10M/week
+        }
     }
 }
