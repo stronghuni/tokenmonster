@@ -69,15 +69,22 @@ final class TokenTracker {
         get { _baseline ?? 0 }
         set { _baseline = newValue; saveState() }
     }
+    private static let stateVersion = 2  // bumped when counting rules change
+
     private func loadState() {
         guard let data = try? Data(contentsOf: stateURL),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        let version = (obj["version"] as? Int) ?? 1
+        // Pre-v2 state was computed with cache_read included — ignore it so
+        // the baseline re-computes against the new (smaller) totals.
+        guard version >= Self.stateVersion else { return }
         if let b = obj["baseline"] as? Int { _baseline = Int64(b) }
         if let s = obj["stage"] as? Int, let stage = Stage(rawValue: s) { lastKnownStage = stage }
         if let f = obj["forceBonus"] as? Int { forceBonus = Int64(f) }
     }
     private func saveState() {
         let obj: [String: Any] = [
+            "version": Self.stateVersion,
             "baseline": Int(_baseline ?? 0),
             "stage": lastKnownStage.rawValue,
             "forceBonus": Int(forceBonus),
@@ -189,7 +196,10 @@ final class TokenTracker {
             let outT = (usage["output_tokens"] as? Int) ?? 0
             let cC   = (usage["cache_creation_input_tokens"] as? Int) ?? 0
             let cR   = (usage["cache_read_input_tokens"]     as? Int) ?? 0
-            let total = Int64(inT + outT + cC + cR)
+            // Exclude cache_read — it's the repeated context replay and
+            // makes up 80-90% of the raw count without representing new work.
+            // We still record cost using cR so the $ figure stays accurate.
+            let total = Int64(inT + outT + cC)
             added += total
             projectTotals[projectName, default: 0] += total
             totalCostUSD += CostCalculator.cost(
@@ -275,12 +285,12 @@ final class TokenTracker {
         raw.split(separator: "-").last.map(String.init) ?? raw
     }
 
-    /// Weekly-tokens → ball tier thresholds.
+    /// Weekly-tokens → ball tier thresholds (cache_read excluded).
     private static func tier(for weekly: Int64) -> BallTier {
         switch weekly {
-        case ..<30_000_000:            return .monster    // < 30M/week
-        case 30_000_000..<150_000_000: return .superBall  // 30M–150M/week
-        default:                       return .hyper      // ≥ 150M/week
+        case ..<3_000_000:            return .monster    // < 3M/week
+        case 3_000_000..<15_000_000:  return .superBall  // 3M–15M/week
+        default:                      return .hyper      // ≥ 15M/week
         }
     }
 }

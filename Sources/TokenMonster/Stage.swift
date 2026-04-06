@@ -6,11 +6,11 @@ enum Stage: Int, CaseIterable {
     var threshold: Int64 {
         switch self {
         case .egg:      return 0
-        case .baby:     return 30_000_000
-        case .child:    return 150_000_000
-        case .teen:     return 500_000_000
-        case .adult:    return 1_500_000_000
-        case .ultimate: return 4_000_000_000
+        case .baby:     return 3_000_000      // few days
+        case .child:    return 15_000_000     // ~1-2 weeks
+        case .teen:     return 50_000_000     // ~1 month
+        case .adult:    return 150_000_000    // ~2-3 months
+        case .ultimate: return 400_000_000    // ~5-6 months
         }
     }
 
