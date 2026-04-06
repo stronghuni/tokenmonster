@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" shape-rendering="crispEdges" width="220" height="220">
+  <rect width="22" height="22" fill="#1d1d1f"/>
+
+  <!-- ====== FRAME A ====== -->
+  <g id="frameA">
+    <g fill="#ffffff">
+      <!-- flame tuft (tall) -->
+      <rect x="10" y="1" width="2" height="1"/>
+      <rect x="9"  y="2" width="1" height="1"/>
+      <rect x="12" y="2" width="1" height="1"/>
+      <rect x="10" y="3" width="2" height="1"/>
+      <!-- head -->
+      <rect x="7"  y="5" width="8" height="1"/>
+      <rect x="6"  y="6" width="10" height="1"/>
+      <rect x="5"  y="7" width="12" height="4"/>
+      <rect x="6"  y="11" width="10" height="1"/>
+      <!-- body -->
+      <rect x="6"  y="12" width="10" height="1"/>
+      <rect x="5"  y="13" width="12" height="3"/>
+      <rect x="6"  y="16" width="10" height="1"/>
+      <rect x="7"  y="17" width="8"  height="1"/>
+      <!-- feet (standing) -->
+      <rect x="7"  y="18" width="2" height="1"/>
+      <rect x="13" y="18" width="2" height="1"/>
+    </g>
+    <g fill="#1d1d1f">
+      <!-- eyes open -->
+      <rect x="8"  y="8" width="1" height="2"/>
+      <rect x="13" y="8" width="1" height="2"/>
+      <!-- mouth small -->
+      <rect x="10" y="10" width="2" height="1"/>
+      <!-- shell zig-zag -->
+      <rect x="5"  y="13" width="1" height="1"/>
+      <rect x="7"  y="13" width="1" height="1"/>
+      <rect x="9"  y="13" width="1" height="1"/>
+      <rect x="11" y="13" width="1" height="1"/>
+      <rect x="13" y="13" width="1" height="1"/>
+      <rect x="15" y="13" width="1" height="1"/>
+    </g>
+  </g>
+
+  <!-- ====== FRAME B (bobbed down 1px + flame wiggled + eyes blink + mouth open) ====== -->
+  <g id="frameB" opacity="0">
+    <g fill="#ffffff">
+      <!-- flame tuft (wiggle: leans right) -->
+      <rect x="11" y="1" width="2" height="1"/>
+      <rect x="10" y="2" width="1" height="1"/>
+      <rect x="13" y="2" width="1" height="1"/>
+      <rect x="11" y="3" width="2" height="1"/>
+      <!-- head (shifted down 1px) -->
+      <rect x="7"  y="6" width="8" height="1"/>
+      <rect x="6"  y="7" width="10" height="1"/>
+      <rect x="5"  y="8" width="12" height="4"/>
+      <rect x="6"  y="12" width="10" height="1"/>
+      <!-- body (shifted down 1px) -->
+      <rect x="6"  y="13" width="10" height="1"/>
+      <rect x="5"  y="14" width="12" height="3"/>
+      <rect x="6"  y="17" width="10" height="1"/>
+      <rect x="7"  y="18" width="8"  height="1"/>
+      <!-- feet (tucked, shorter) -->
+      <rect x="8"  y="19" width="1" height="1"/>
+      <rect x="13" y="19" width="1" height="1"/>
+    </g>
+    <g fill="#1d1d1f">
+      <!-- eyes blink (closed = single row) -->
+      <rect x="8"  y="10" width="1" height="1"/>
+      <rect x="13" y="10" width="1" height="1"/>
+      <!-- mouth open (2x2) -->
+      <rect x="10" y="11" width="2" height="1"/>
+      <!-- shell zig-zag (shifted down) -->
+      <rect x="5"  y="14" width="1" height="1"/>
+      <rect x="7"  y="14" width="1" height="1"/>
+      <rect x="9"  y="14" width="1" height="1"/>
+      <rect x="11" y="14" width="1" height="1"/>
+      <rect x="13" y="14" width="1" height="1"/>
+      <rect x="15" y="14" width="1" height="1"/>
+    </g>
+  </g>
+
+  <!-- Swap frames every 0.4s -->
+  <animate xlink:href="#frameA" attributeName="opacity"
+           values="1;1;0;0;1" keyTimes="0;0.45;0.5;0.95;1" dur="0.8s" repeatCount="indefinite"/>
+  <animate xlink:href="#frameB" attributeName="opacity"
+           values="0;0;1;1;0" keyTimes="0;0.45;0.5;0.95;1" dur="0.8s" repeatCount="indefinite"/>
+</svg>

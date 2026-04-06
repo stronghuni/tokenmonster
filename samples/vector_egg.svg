@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+  <defs>
+    <radialGradient id="shell" cx="38%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="#fff8e0"/>
+      <stop offset="45%" stop-color="#ffe9a8"/>
+      <stop offset="85%" stop-color="#ffc65a"/>
+      <stop offset="100%" stop-color="#e88a1a"/>
+    </radialGradient>
+    <radialGradient id="flame" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#fff2a0"/>
+      <stop offset="40%" stop-color="#ffb020"/>
+      <stop offset="100%" stop-color="#ff3810"/>
+    </radialGradient>
+    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="320" height="320" fill="#f5f5f0"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="160" cy="270" rx="80" ry="10" fill="url(#shadow)"/>
+
+  <!-- egg body -->
+  <path d="M160 50
+           C 220 50, 260 130, 260 185
+           C 260 240, 220 275, 160 275
+           C 100 275, 60 240, 60 185
+           C 60 130, 100 50, 160 50 Z"
+        fill="url(#shell)"
+        stroke="#6b2a08" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- shine highlight -->
+  <path d="M100 100 Q 115 75, 140 72 Q 120 90, 108 120 Z"
+        fill="#ffffff" opacity="0.75"/>
+
+  <!-- fire spots -->
+  <g stroke="#6b2a08" stroke-width="4" stroke-linejoin="round">
+    <path d="M135 135
+             Q 125 115, 145 110
+             Q 165 105, 160 130
+             Q 175 120, 175 145
+             Q 160 160, 145 155
+             Q 130 155, 135 135 Z"
+          fill="url(#flame)"/>
+    <path d="M200 175
+             Q 190 155, 210 150
+             Q 228 150, 225 170
+             Q 238 168, 230 190
+             Q 215 200, 200 190
+             Q 193 190, 200 175 Z"
+          fill="url(#flame)"/>
+    <path d="M115 205
+             Q 115 190, 130 188
+             Q 145 190, 142 205
+             Q 148 210, 138 218
+             Q 122 220, 115 205 Z"
+          fill="url(#flame)"/>
+  </g>
+
+  <!-- crack -->
+  <path d="M150 85 L 162 100 L 152 115 L 165 130"
+        stroke="#6b2a08" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- tiny sparkles -->
+  <circle cx="230" cy="110" r="4" fill="#ffde6a"/>
+  <circle cx="90"  cy="170" r="3" fill="#ffde6a"/>
+  <circle cx="215" cy="230" r="3" fill="#ffde6a"/>
+</svg>
